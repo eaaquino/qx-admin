@@ -1,9 +1,8 @@
-import { Authenticated, GitHubBanner, Refine } from "@refinedev/core";
+import { Authenticated, Refine } from "@refinedev/core";
 import { DevtoolsPanel, DevtoolsProvider } from "@refinedev/devtools";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 
 import {
-  AuthPage,
   ErrorComponent,
   ThemedLayout,
   ThemedSider,
@@ -52,6 +51,8 @@ import {
   CampaignList,
   CampaignShow,
 } from "./pages/campaigns";
+import { Login } from "./pages/login"
+
 import { supabaseClient } from "./utility";
 
 function App() {
@@ -68,16 +69,6 @@ function App() {
                 routerProvider={routerProvider}
                 notificationProvider={useNotificationProvider}
                 resources={[
-                  {
-                    name: "queue_entries",
-                    list: "/queues",
-                    edit: "/queues/edit/:id",
-                    show: "/queues/show/:id",
-                    meta: {
-                      canDelete: true,
-                      label: "Queues",
-                    },
-                  },
                   {
                     name: "doctors",
                     list: "/doctors",
@@ -106,6 +97,16 @@ function App() {
                     },
                   },
                   {
+                    name: "queue_entries",
+                    list: "/queues",
+                    edit: "/queues/edit/:id",
+                    show: "/queues/show/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Queues",
+                    },
+                  },
+                  {
                     name: "admins",
                     list: "/admins",
                     create: "/admins/create",
@@ -117,6 +118,9 @@ function App() {
                     },
                   },
                   {
+                    name: "Ad Management"
+                  },
+                  {
                     name: "campaign_zones",
                     list: "/campaign-zones",
                     create: "/campaign-zones/create",
@@ -125,6 +129,7 @@ function App() {
                     meta: {
                       canDelete: true,
                       label: "Campaign Zones",
+                      parent: "Ad Management",
                     },
                   },
                   {
@@ -136,6 +141,7 @@ function App() {
                     meta: {
                       canDelete: true,
                       label: "Ad Campaigns",
+                      parent: "Ad Management",
                     },
                   },
                 ]}
@@ -231,15 +237,7 @@ function App() {
                   >
                     <Route
                       path="/login"
-element={<AuthPage type="login" />}
-                    />
-                    <Route
-                      path="/register"
-                      element={<AuthPage type="register" />}
-                    />
-                    <Route
-                      path="/forgot-password"
-                      element={<AuthPage type="forgotPassword" />}
+                      element={<Login />}
                     />
                   </Route>
                 </Routes>
