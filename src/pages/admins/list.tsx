@@ -7,7 +7,7 @@ import {
   ShowButton,
   useTable,
 } from "@refinedev/antd";
-import { Space, Table, Tag } from "antd";
+import { Space, Table, Tag, Avatar } from "antd";
 import type { BaseRecord } from "@refinedev/core";
 
 export const AdminList: React.FC = () => {
@@ -27,6 +27,20 @@ export const AdminList: React.FC = () => {
   return (
     <List>
       <Table {...tableProps} rowKey="id">
+        <Table.Column
+          dataIndex="profile_photo_url"
+          title="Photo"
+          width={80}
+          render={(value: string, record: BaseRecord) => (
+            <Avatar
+              size={40}
+              src={value}
+              style={{ backgroundColor: '#004777' }}
+            >
+              {record.first_name?.charAt(0)}{record.last_name?.charAt(0)}
+            </Avatar>
+          )}
+        />
         <Table.Column dataIndex="first_name" title="First Name" sorter />
         <Table.Column dataIndex="last_name" title="Last Name" sorter />
         <Table.Column dataIndex="email" title="Email" />

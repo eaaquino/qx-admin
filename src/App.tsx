@@ -7,6 +7,7 @@ import {
   ErrorComponent,
   ThemedLayout,
   ThemedSider,
+  ThemedTitle,
   useNotificationProvider,
 } from "@refinedev/antd";
 import "@refinedev/antd/dist/reset.css";
@@ -39,6 +40,18 @@ import {
   AdminList,
   AdminShow,
 } from "./pages/admins";
+import {
+  CampaignZoneCreate,
+  CampaignZoneEdit,
+  CampaignZoneList,
+  CampaignZoneShow,
+} from "./pages/campaign-zones";
+import {
+  CampaignCreate,
+  CampaignEdit,
+  CampaignList,
+  CampaignShow,
+} from "./pages/campaigns";
 import { supabaseClient } from "./utility";
 
 function App() {
@@ -103,6 +116,28 @@ function App() {
                       label: "Admin Users",
                     },
                   },
+                  {
+                    name: "campaign_zones",
+                    list: "/campaign-zones",
+                    create: "/campaign-zones/create",
+                    edit: "/campaign-zones/edit/:id",
+                    show: "/campaign-zones/show/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Campaign Zones",
+                    },
+                  },
+                  {
+                    name: "ad_campaigns",
+                    list: "/campaigns",
+                    create: "/campaigns/create",
+                    edit: "/campaigns/edit/:id",
+                    show: "/campaigns/show/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Ad Campaigns",
+                    },
+                  },
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -119,6 +154,23 @@ function App() {
                       >
                         <ThemedLayout
                           Header={Header}
+                          Title={({ collapsed }) => (
+                            <ThemedTitle
+                              collapsed={collapsed}
+                              text="QX Admin"
+                              icon={
+                                <img
+                                  src="/logo.png"
+                                  alt="QX Admin"
+                                  style={{
+                                    width: "24px",
+                                    height: "24px",
+                                    objectFit: "contain",
+                                  }}
+                                />
+                              }
+                            />
+                          )}
                           Sider={(props) => <ThemedSider {...props} fixed />}
                         >
                           <Outlet />
@@ -152,6 +204,18 @@ function App() {
                       <Route path="create" element={<AdminCreate />} />
                       <Route path="edit/:id" element={<AdminEdit />} />
                       <Route path="show/:id" element={<AdminShow />} />
+                    </Route>
+                    <Route path="/campaign-zones">
+                      <Route index element={<CampaignZoneList />} />
+                      <Route path="create" element={<CampaignZoneCreate />} />
+                      <Route path="edit/:id" element={<CampaignZoneEdit />} />
+                      <Route path="show/:id" element={<CampaignZoneShow />} />
+                    </Route>
+                    <Route path="/campaigns">
+                      <Route index element={<CampaignList />} />
+                      <Route path="create" element={<CampaignCreate />} />
+                      <Route path="edit/:id" element={<CampaignEdit />} />
+                      <Route path="show/:id" element={<CampaignShow />} />
                     </Route>
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
