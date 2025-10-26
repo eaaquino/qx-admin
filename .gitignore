@@ -24,3 +24,11 @@ _.ntvs_
 _.njsproj
 _.sln
 \*.sw?
+
+
+*.md
+!README.md
+
+/supabase/.temp
+/supabase/.temp/*
+/docs

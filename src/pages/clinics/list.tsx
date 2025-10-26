@@ -1,14 +1,16 @@
+import React from "react";
 import {
+  DateField,
   DeleteButton,
   EditButton,
   List,
   ShowButton,
   useTable,
 } from "@refinedev/antd";
-import type { BaseRecord } from "@refinedev/core";
 import { Space, Table } from "antd";
+import type { BaseRecord } from "@refinedev/core";
 
-export const CategoryList = () => {
+export const ClinicList: React.FC = () => {
   const { tableProps } = useTable({
     syncWithLocation: true,
   });
@@ -16,10 +18,18 @@ export const CategoryList = () => {
   return (
     <List>
       <Table {...tableProps} rowKey="id">
-        <Table.Column dataIndex="id" title={"ID"} />
-        <Table.Column dataIndex="title" title={"title"} />
+        <Table.Column dataIndex="name" title="Name" sorter />
+        <Table.Column dataIndex="address" title="Address" />
+        <Table.Column dataIndex="phone" title="Phone" />
+        <Table.Column dataIndex="email" title="Email" />
         <Table.Column
-          title={"Actions"}
+          dataIndex="created_at"
+          title="Created"
+          render={(value: any) => <DateField value={value} format="LL" />}
+          sorter
+        />
+        <Table.Column
+          title="Actions"
           dataIndex="actions"
           render={(_, record: BaseRecord) => (
             <Space>

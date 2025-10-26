@@ -23,24 +23,27 @@ import { BrowserRouter, Outlet, Route, Routes } from "react-router";
 import authProvider from "./authProvider";
 import { Header } from "./components/header";
 import { ColorModeContextProvider } from "./contexts/color-mode";
+import { Dashboard } from "./pages/dashboard";
+import { QueueEdit, QueueList, QueueShow } from "./pages/queues";
+import { DoctorEdit, DoctorList, DoctorShow } from "./pages/doctors";
+import { PatientList, PatientShow } from "./pages/patients";
 import {
-  BlogPostCreate,
-  BlogPostEdit,
-  BlogPostList,
-  BlogPostShow,
-} from "./pages/blog-posts";
+  ClinicCreate,
+  ClinicEdit,
+  ClinicList,
+  ClinicShow,
+} from "./pages/clinics";
 import {
-  CategoryCreate,
-  CategoryEdit,
-  CategoryList,
-  CategoryShow,
-} from "./pages/categories";
+  AdminCreate,
+  AdminEdit,
+  AdminList,
+  AdminShow,
+} from "./pages/admins";
 import { supabaseClient } from "./utility";
 
 function App() {
   return (
     <BrowserRouter>
-      <GitHubBanner />
       <RefineKbarProvider>
         <ColorModeContextProvider>
           <AntdApp>
@@ -53,23 +56,51 @@ function App() {
                 notificationProvider={useNotificationProvider}
                 resources={[
                   {
-                    name: "blog_posts",
-                    list: "/blog-posts",
-                    create: "/blog-posts/create",
-                    edit: "/blog-posts/edit/:id",
-                    show: "/blog-posts/show/:id",
+                    name: "queue_entries",
+                    list: "/queues",
+                    edit: "/queues/edit/:id",
+                    show: "/queues/show/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Queues",
+                    },
+                  },
+                  {
+                    name: "doctors",
+                    list: "/doctors",
+                    edit: "/doctors/edit/:id",
+                    show: "/doctors/show/:id",
                     meta: {
                       canDelete: true,
                     },
                   },
                   {
-                    name: "categories",
-                    list: "/categories",
-                    create: "/categories/create",
-                    edit: "/categories/edit/:id",
-                    show: "/categories/show/:id",
+                    name: "patients",
+                    list: "/patients",
+                    show: "/patients/show/:id",
                     meta: {
                       canDelete: true,
+                    },
+                  },
+                  {
+                    name: "clinics",
+                    list: "/clinics",
+                    create: "/clinics/create",
+                    edit: "/clinics/edit/:id",
+                    show: "/clinics/show/:id",
+                    meta: {
+                      canDelete: true,
+                    },
+                  },
+                  {
+                    name: "admins",
+                    list: "/admins",
+                    create: "/admins/create",
+                    edit: "/admins/edit/:id",
+                    show: "/admins/show/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Admin Users",
                     },
                   },
                 ]}
@@ -95,21 +126,32 @@ function App() {
                       </Authenticated>
                     }
                   >
-                    <Route
-                      index
-                      element={<NavigateToResource resource="blog_posts" />}
-                    />
-                    <Route path="/blog-posts">
-                      <Route index element={<BlogPostList />} />
-                      <Route path="create" element={<BlogPostCreate />} />
-                      <Route path="edit/:id" element={<BlogPostEdit />} />
-                      <Route path="show/:id" element={<BlogPostShow />} />
+                    <Route index element={<Dashboard />} />
+                    <Route path="/queues">
+                      <Route index element={<QueueList />} />
+                      <Route path="edit/:id" element={<QueueEdit />} />
+                      <Route path="show/:id" element={<QueueShow />} />
                     </Route>
-                    <Route path="/categories">
-                      <Route index element={<CategoryList />} />
-                      <Route path="create" element={<CategoryCreate />} />
-                      <Route path="edit/:id" element={<CategoryEdit />} />
-                      <Route path="show/:id" element={<CategoryShow />} />
+                    <Route path="/doctors">
+                      <Route index element={<DoctorList />} />
+                      <Route path="edit/:id" element={<DoctorEdit />} />
+                      <Route path="show/:id" element={<DoctorShow />} />
+                    </Route>
+                    <Route path="/patients">
+                      <Route index element={<PatientList />} />
+                      <Route path="show/:id" element={<PatientShow />} />
+                    </Route>
+                    <Route path="/clinics">
+                      <Route index element={<ClinicList />} />
+                      <Route path="create" element={<ClinicCreate />} />
+                      <Route path="edit/:id" element={<ClinicEdit />} />
+                      <Route path="show/:id" element={<ClinicShow />} />
+                    </Route>
+                    <Route path="/admins">
+                      <Route index element={<AdminList />} />
+                      <Route path="create" element={<AdminCreate />} />
+                      <Route path="edit/:id" element={<AdminEdit />} />
+                      <Route path="show/:id" element={<AdminShow />} />
                     </Route>
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
@@ -125,17 +167,7 @@ function App() {
                   >
                     <Route
                       path="/login"
-                      element={
-                        <AuthPage
-                          type="login"
-                          formProps={{
-                            initialValues: {
-                              email: "info@refine.dev",
-                              password: "refine-supabase",
-                            },
-                          }}
-                        />
-                      }
+element={<AuthPage type="login" />}
                     />
                     <Route
                       path="/register"
