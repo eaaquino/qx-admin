@@ -7,11 +7,17 @@ import { supabaseClient } from "../../utility";
 const { Title } = Typography;
 
 export const DoctorShow: React.FC = () => {
-  const { queryResult } = useShow();
-  const { data, isLoading } = queryResult;
+  const { query, result } = useShow({
+    resource: "doctors",
+    meta: {
+      select: "*, clinics(name)",
+    },
+  });
+
+  const { isLoading } = query;
   const [zones, setZones] = useState<string[]>([]);
 
-  const record = data?.data;
+  const record = result;
 
   useEffect(() => {
     const loadZones = async () => {
