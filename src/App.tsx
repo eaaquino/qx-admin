@@ -51,6 +51,7 @@ import {
   CampaignList,
   CampaignShow,
 } from "./pages/campaigns";
+import { CampaignCoupons } from "./pages/campaigns/coupons";
 import { Login } from "./pages/login"
 
 import { supabaseClient } from "./utility";
@@ -107,18 +108,19 @@ function App() {
                     },
                   },
                   {
-                    name: "admins",
-                    list: "/admins",
-                    create: "/admins/create",
-                    edit: "/admins/edit/:id",
-                    show: "/admins/show/:id",
-                    meta: {
-                      canDelete: true,
-                      label: "Admin Users",
-                    },
+                    name: "Ad Management"
                   },
                   {
-                    name: "Ad Management"
+                    name: "ad_campaigns",
+                    list: "/campaigns",
+                    create: "/campaigns/create",
+                    edit: "/campaigns/edit/:id",
+                    show: "/campaigns/show/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Ad Campaigns",
+                      parent: "Ad Management",
+                    },
                   },
                   {
                     name: "campaign_zones",
@@ -133,15 +135,14 @@ function App() {
                     },
                   },
                   {
-                    name: "ad_campaigns",
-                    list: "/campaigns",
-                    create: "/campaigns/create",
-                    edit: "/campaigns/edit/:id",
-                    show: "/campaigns/show/:id",
+                    name: "admins",
+                    list: "/admins",
+                    create: "/admins/create",
+                    edit: "/admins/edit/:id",
+                    show: "/admins/show/:id",
                     meta: {
                       canDelete: true,
-                      label: "Ad Campaigns",
-                      parent: "Ad Management",
+                      label: "Admin Users",
                     },
                   },
                 ]}
@@ -224,6 +225,7 @@ function App() {
                       <Route path="edit/:id" element={<CampaignEdit />} />
                       <Route path="show/:id" element={<CampaignShow />} />
                     </Route>
+                    <Route path="/ad_campaigns/:id/coupons" element={<CampaignCoupons />} />
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
                   <Route

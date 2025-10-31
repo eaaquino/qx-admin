@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Edit, useSelect } from "@refinedev/antd";
-import { useGetIdentity, useNavigation } from "@refinedev/core";
+import { useGetIdentity, useNavigation, useGo } from "@refinedev/core";
 import {
   Form,
   Input,
@@ -12,8 +12,11 @@ import {
   Upload,
   Image,
   Alert,
+  Radio,
+  Button,
+  Space,
 } from "antd";
-import { UploadOutlined } from "@ant-design/icons";
+import { UploadOutlined, TagOutlined } from "@ant-design/icons";
 import type { UploadFile, UploadProps } from "antd";
 import { supabaseClient } from "../../utility";
 import dayjs from "dayjs";
@@ -27,7 +30,9 @@ export const CampaignEdit: React.FC = () => {
   const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
   const [newImageUrl, setNewImageUrl] = useState<string>("");
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [couponMode, setCouponMode] = useState<string>("none");
   const { list } = useNavigation();
+  const go = useGo();
   const { id } = useParams();
 
   const { selectProps: zoneSelectProps } = useSelect({
@@ -62,12 +67,17 @@ export const CampaignEdit: React.FC = () => {
         // Store current image URL
         setCurrentImageUrl(campaign.image_url || "");
 
+        // Set coupon mode
+        setCouponMode(campaign.coupon_mode || "none");
+
         // Set form values
         form.setFieldsValue({
           ...campaign,
           start_date: campaign.start_date ? dayjs(campaign.start_date) : null,
           end_date: campaign.end_date ? dayjs(campaign.end_date) : null,
           zones: zoneTags.map((tag) => tag.zone_id),
+          coupon_mode: campaign.coupon_mode || "none",
+          coupon_instructions: campaign.coupon_instructions || "",
         });
       } catch (error: any) {
         console.error("Error loading campaign:", error);
@@ -149,6 +159,8 @@ export const CampaignEdit: React.FC = () => {
           is_active: values.is_active,
           display_duration_seconds: values.display_duration_seconds,
           priority: values.priority,
+          coupon_mode: values.coupon_mode || "none",
+          coupon_instructions: values.coupon_instructions || null,
         })
         .eq("id", id);
 
@@ -208,6 +220,82 @@ export const CampaignEdit: React.FC = () => {
           <Input />
         </Form.Item>
 
+        <div
+          style={{
+            background: "#f0f7ff",
+            border: "1px solid #91caff",
+            borderRadius: "8px",
+            padding: "20px",
+            marginBottom: "24px",
+          }}
+        >
+          <Form.Item
+            label="Campaign Action"
+            name="coupon_mode"
+            tooltip="Determines what happens when patients tap the banner ad"
+            style={{ marginBottom: couponMode === "none" ? 0 : 24 }}
+          >
+            <Radio.Group
+              onChange={(e) => setCouponMode(e.target.value)}
+              value={couponMode}
+            >
+              <Space direction="vertical">
+                <Radio value="none">No Action (Display Only)</Radio>
+                <Radio value="link">Open Link URL</Radio>
+                <Radio value="coupon">Coupon Redemption</Radio>
+              </Space>
+            </Radio.Group>
+          </Form.Item>
+
+          {couponMode === "link" && (
+            <Form.Item
+              label="Link URL"
+              name="link_url"
+              style={{ marginBottom: 0 }}
+              rules={[
+                {
+                  required: true,
+                  message: "Please enter a link URL",
+                },
+                {
+                  type: "url",
+                  message: "Please enter a valid URL",
+                },
+              ]}
+            >
+              <Input placeholder="https://example.com" />
+            </Form.Item>
+          )}
+
+          {couponMode === "coupon" && (
+            <>
+              <Form.Item
+                label="Coupon Instructions"
+                name="coupon_instructions"
+                tooltip="Instructions shown to patients with their coupon code"
+              >
+                <Input.TextArea
+                  rows={2}
+                  placeholder="e.g., Show this code at checkout to get your discount"
+                />
+              </Form.Item>
+
+              <Form.Item label="Manage Coupons" style={{ marginBottom: 0 }}>
+                <Button
+                  type="primary"
+                  icon={<TagOutlined />}
+                  onClick={() => go({ to: `/ad_campaigns/${id}/coupons` })}
+                >
+                  Manage Coupons
+                </Button>
+                <div style={{ marginTop: 8, color: "#666", fontSize: "12px" }}>
+                  Add, import, and manage coupon codes for this campaign
+                </div>
+              </Form.Item>
+            </>
+          )}
+        </div>
+
         <Form.Item label="Description" name="description">
           <Input.TextArea rows={3} />
         </Form.Item>
@@ -265,10 +353,6 @@ export const CampaignEdit: React.FC = () => {
             style={{ marginBottom: 16 }}
           />
         )}
-
-        <Form.Item label="Link URL" name="link_url">
-          <Input />
-        </Form.Item>
 
         <Form.Item
           label="Target Campaign Zones"
