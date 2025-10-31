@@ -184,13 +184,13 @@ export const CampaignList: React.FC = () => {
         <Table.Column
           dataIndex="start_date"
           title="Start Date"
-          render={(value: any) => <DateField value={value} format="LL" />}
+          render={(value: string) => <DateField value={value} format="LL" />}
           sorter
         />
         <Table.Column
           dataIndex="end_date"
           title="End Date"
-          render={(value: any) =>
+          render={(value: string | null) =>
             value ? <DateField value={value} format="LL" /> : "No end date"
           }
         />

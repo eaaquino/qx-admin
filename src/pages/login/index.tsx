@@ -74,15 +74,15 @@ export const Login: React.FC = () => {
                                         message: "Invalid email address",
                                     }
                                 ]}>
-                                    <Input size="large" placeholder="Username" />
+                                    <Input size="large" placeholder="Username" autoComplete="email" />
                                 </Form.Item>
                                 <Form.Item
                                     name="password"
                                     label="Password"
                                     rules={[{ required: true }]}
-                                    style={{ marginBottom: "12px" 
+                                    style={{ marginBottom: "12px"
                                 }}>
-                                    <Input type="password" placeholder="●●●●●●●●" size="large" />
+                                    <Input type="password" placeholder="●●●●●●●●" size="large" autoComplete="current-password" />
                                 </Form.Item>
                                 <div style={{ marginBottom: "12px" }}>
                                     <Form.Item name="remember" valuePropName="checked" noStyle>

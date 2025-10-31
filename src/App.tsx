@@ -24,7 +24,7 @@ import authProvider from "./authProvider";
 import { Header } from "./components/header";
 import { ColorModeContextProvider } from "./contexts/color-mode";
 import { Dashboard } from "./pages/dashboard";
-import { QueueEdit, QueueList, QueueShow } from "./pages/queues";
+import { QueueEdit, QueueList, QueueShow, DoctorQueueMonitor } from "./pages/queues";
 import { DoctorEdit, DoctorList, DoctorShow } from "./pages/doctors";
 import { PatientList, PatientShow } from "./pages/patients";
 import {
@@ -187,6 +187,7 @@ function App() {
                     <Route index element={<Dashboard />} />
                     <Route path="/queues">
                       <Route index element={<QueueList />} />
+                      <Route path="doctor/:doctorId" element={<DoctorQueueMonitor />} />
                       <Route path="edit/:id" element={<QueueEdit />} />
                       <Route path="show/:id" element={<QueueShow />} />
                     </Route>

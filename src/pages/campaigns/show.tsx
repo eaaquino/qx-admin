@@ -6,9 +6,16 @@ import { supabaseClient } from "../../utility";
 
 const { Title } = Typography;
 
+interface ZoneTag {
+  zone_id: string;
+  campaign_zones: {
+    name: string;
+  } | null;
+}
+
 export const CampaignShow: React.FC = () => {
-  const { queryResult } = useShow();
-  const { data, isLoading } = queryResult;
+  const { query } = useShow();
+  const { data, isLoading } = query;
   const [zones, setZones] = useState<string[]>([]);
 
   const record = data?.data;
@@ -23,7 +30,7 @@ export const CampaignShow: React.FC = () => {
         .eq("campaign_id", record.id);
 
       if (zoneTags) {
-        setZones(zoneTags.map((tag: any) => tag.campaign_zones?.name || "Unknown"));
+        setZones((zoneTags as unknown as ZoneTag[]).map((tag) => tag.campaign_zones?.name || "Unknown"));
       }
     };
 

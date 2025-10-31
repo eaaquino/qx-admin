@@ -1,97 +1,210 @@
-import React from "react";
-import {
-  DateField,
-  DeleteButton,
-  EditButton,
-  List,
-  ShowButton,
-  useTable,
-} from "@refinedev/antd";
-import { Space, Table, Tag } from "antd";
-import type { BaseRecord } from "@refinedev/core";
+import React, { useState, useEffect } from "react";
+import { List } from "@refinedev/antd";
+import { Space, Table, Tag, Button, Card, Typography } from "antd";
+import { EyeOutlined, SyncOutlined } from "@ant-design/icons";
+import { supabaseClient } from "../../utility";
+
+const { Text } = Typography;
+
+interface DoctorQueueSummary {
+  doctor_id: string;
+  doctor_name: string;
+  clinic_name?: string;
+  total_queue: number;
+  waiting: number;
+  in_progress: number;
+  completed_today: number;
+  latest_checkin?: string;
+}
 
 export const QueueList: React.FC = () => {
-  const { tableProps } = useTable({
-    syncWithLocation: true,
-    sorters: {
-      initial: [
-        {
-          field: "check_in_time",
-          order: "desc",
-        },
-      ],
-    },
-  });
+  const [queueSummaries, setQueueSummaries] = useState<DoctorQueueSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [countdown, setCountdown] = useState(30);
+  const REFRESH_INTERVAL = 30000; // 30 seconds
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      waiting: "blue",
-      called: "orange",
-      in_progress: "cyan",
-      completed: "green",
-      cancelled: "red",
-      no_show: "default",
-    };
-    return colors[status] || "default";
+  const fetchQueueSummaries = async () => {
+    setLoading(true);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Fetch all queue entries with doctor and clinic info
+      const { data: queueEntries, error } = await supabaseClient
+        .from("queue_entries")
+        .select(`
+          id,
+          doctor_id,
+          status,
+          check_in_time,
+          doctors(id, first_name, last_name, clinic_id, clinics(name))
+        `)
+        .gte("check_in_time", today.toISOString());
+
+      if (error) throw error;
+
+      // Group by doctor and calculate summaries
+      const summaryMap = new Map<string, DoctorQueueSummary>();
+
+      queueEntries?.forEach((entry: any) => {
+        const doctorId = entry.doctor_id;
+
+        if (!summaryMap.has(doctorId)) {
+          summaryMap.set(doctorId, {
+            doctor_id: doctorId,
+            doctor_name: `Dr. ${entry.doctors.first_name} ${entry.doctors.last_name}`,
+            clinic_name: entry.doctors.clinics?.name,
+            total_queue: 0,
+            waiting: 0,
+            in_progress: 0,
+            completed_today: 0,
+            latest_checkin: entry.check_in_time,
+          });
+        }
+
+        const summary = summaryMap.get(doctorId)!;
+
+        // Count by status
+        if (entry.status === "waiting") {
+          summary.waiting++;
+          summary.total_queue++;
+        } else if (entry.status === "in_progress" || entry.status === "called") {
+          summary.in_progress++;
+          summary.total_queue++;
+        } else if (entry.status === "completed") {
+          summary.completed_today++;
+        }
+
+        // Update latest check-in
+        if (!summary.latest_checkin || entry.check_in_time > summary.latest_checkin) {
+          summary.latest_checkin = entry.check_in_time;
+        }
+      });
+
+      // Filter to doctors with active queues OR completed patients today
+      const activeDoctors = Array.from(summaryMap.values())
+        .filter((summary) => summary.total_queue > 0 || summary.completed_today > 0)
+        .sort((a, b) => b.total_queue - a.total_queue);
+
+      setQueueSummaries(activeDoctors);
+      setCountdown(30); // Reset countdown
+    } catch (error) {
+      console.error("Error fetching queue summaries:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Initial fetch
+  useEffect(() => {
+    fetchQueueSummaries();
+  }, []);
+
+  // Polling interval
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchQueueSummaries();
+    }, REFRESH_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 30));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <List>
-      <Table {...tableProps} rowKey="id">
-        <Table.Column
-          dataIndex="queue_position"
-          title="Position"
-          sorter
-          defaultSortOrder="ascend"
-        />
-        <Table.Column
-          dataIndex={["patients", "name"]}
-          title="Patient"
-          render={(value) => value || "N/A"}
-        />
-        <Table.Column
-          dataIndex={["doctors", "first_name"]}
-          title="Doctor"
-          render={(value, record: BaseRecord) =>
-            `Dr. ${value} ${record.doctors?.last_name || ""}`
-          }
-        />
-        <Table.Column
-          dataIndex="status"
-          title="Status"
-          render={(value: string) => (
-            <Tag color={getStatusColor(value)}>{value.toUpperCase()}</Tag>
-          )}
-        />
-        <Table.Column
-          dataIndex="reason_for_visit"
-          title="Reason"
-          render={(value: string) => value.replace("-", " ").toUpperCase()}
-        />
-        <Table.Column
-          dataIndex="estimated_wait_time"
-          title="Est. Wait (min)"
-          sorter
-          render={(value) => value || "N/A"}
-        />
-        <Table.Column
-          dataIndex="check_in_time"
-          title="Check-in"
-          render={(value: any) => <DateField value={value} format="LT" />}
-          sorter
-        />
-        <Table.Column
-          title="Actions"
-          dataIndex="actions"
-          render={(_, record: BaseRecord) => (
-            <Space>
-              <EditButton hideText size="small" recordItemId={record.id} />
-              <ShowButton hideText size="small" recordItemId={record.id} />
-              <DeleteButton hideText size="small" recordItemId={record.id} />
-            </Space>
-          )}
-        />
-      </Table>
+    <List
+      title="Active Queues"
+      headerButtons={
+        <Space>
+          <Text type="secondary">
+            Refreshing in {countdown}s
+          </Text>
+          <Button
+            icon={<SyncOutlined spin={loading} />}
+            onClick={fetchQueueSummaries}
+            loading={loading}
+          >
+            Refresh Now
+          </Button>
+        </Space>
+      }
+    >
+      {queueSummaries.length === 0 ? (
+        <Card>
+          <Text type="secondary">No active queues at the moment</Text>
+        </Card>
+      ) : (
+        <Table
+          dataSource={queueSummaries}
+          loading={loading}
+          rowKey="doctor_id"
+          pagination={false}
+        >
+          <Table.Column
+            dataIndex="doctor_name"
+            title="Doctor"
+            render={(value: string) => <Text strong>{value}</Text>}
+          />
+          <Table.Column
+            dataIndex="clinic_name"
+            title="Clinic"
+            render={(value: string) => value || "N/A"}
+          />
+          <Table.Column
+            dataIndex="total_queue"
+            title="Active Queue"
+            render={(value: number) => (
+              <Tag color="blue" style={{ fontSize: "14px", padding: "4px 8px" }}>
+                {value} patient{value !== 1 ? "s" : ""}
+              </Tag>
+            )}
+          />
+          <Table.Column
+            dataIndex="waiting"
+            title="Waiting"
+            render={(value: number) => (
+              <Tag color="orange">{value}</Tag>
+            )}
+          />
+          <Table.Column
+            dataIndex="in_progress"
+            title="In Progress"
+            render={(value: number) => (
+              <Tag color="cyan">{value}</Tag>
+            )}
+          />
+          <Table.Column
+            dataIndex="completed_today"
+            title="Completed Today"
+            render={(value: number) => (
+              <Tag color="green">{value}</Tag>
+            )}
+          />
+          <Table.Column
+            title="Actions"
+            dataIndex="actions"
+            render={(_, record: DoctorQueueSummary) => (
+              <Space>
+                <Button
+                  type="primary"
+                  icon={<EyeOutlined />}
+                  size="small"
+                  href={`/queues/doctor/${record.doctor_id}`}
+                >
+                  View Queue
+                </Button>
+              </Space>
+            )}
+          />
+        </Table>
+      )}
     </List>
   );
 };
