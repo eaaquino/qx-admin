@@ -31,6 +31,7 @@ export const CampaignEdit: React.FC = () => {
   const [newImageUrl, setNewImageUrl] = useState<string>("");
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [couponMode, setCouponMode] = useState<string>("none");
+  const [navigateToCoupons, setNavigateToCoupons] = useState(false);
   const { list } = useNavigation();
   const go = useGo();
   const { id } = useParams();
@@ -187,7 +188,14 @@ export const CampaignEdit: React.FC = () => {
       }
 
       message.success("Campaign updated successfully!");
-      list("ad_campaigns");
+
+      // Navigate to coupons page if requested, otherwise go to list
+      if (navigateToCoupons) {
+        setNavigateToCoupons(false);
+        go({ to: `/ad_campaigns/${id}/coupons` });
+      } else {
+        list("ad_campaigns");
+      }
     } catch (error: any) {
       console.error("Error updating campaign:", error);
       message.error(error.message || "Failed to update campaign");
@@ -284,7 +292,18 @@ export const CampaignEdit: React.FC = () => {
                 <Button
                   type="primary"
                   icon={<TagOutlined />}
-                  onClick={() => go({ to: `/ad_campaigns/${id}/coupons` })}
+                  onClick={async () => {
+                    // Save the form first before navigating
+                    try {
+                      await form.validateFields();
+                      setNavigateToCoupons(true);
+                      form.submit();
+                      // Navigation will happen after successful save via handleSubmit
+                    } catch (error) {
+                      // Validation failed, don't navigate
+                      console.error('Form validation failed:', error);
+                    }
+                  }}
                 >
                   Manage Coupons
                 </Button>

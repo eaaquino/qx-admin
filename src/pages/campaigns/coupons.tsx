@@ -30,12 +30,10 @@ import {
 import { supabaseClient } from "../../utility";
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 interface Coupon {
   id: string;
   code: string;
-  description: string | null;
   is_active: boolean;
   created_at: string;
   is_redeemed?: boolean;
@@ -235,7 +233,6 @@ export const CampaignCoupons: React.FC = () => {
           .from("campaign_coupons")
           .update({
             code: values.code,
-            description: values.description,
             is_active: true,
           })
           .eq("id", editingCoupon.id);
@@ -249,7 +246,6 @@ export const CampaignCoupons: React.FC = () => {
           .insert({
             campaign_id: campaignId,
             code: values.code,
-            description: values.description,
             is_active: true,
           });
 
@@ -269,7 +265,7 @@ export const CampaignCoupons: React.FC = () => {
     }
   };
 
-  const parseCsvFile = (file: File): Promise<Array<{ code: string; description: string }>> => {
+  const parseCsvFile = (file: File): Promise<Array<{ code: string }>> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
 
@@ -278,41 +274,37 @@ export const CampaignCoupons: React.FC = () => {
           const text = e.target?.result as string;
           const lines = text.split('\n').filter(line => line.trim());
 
-          if (lines.length < 2) {
-            reject(new Error("CSV file must contain at least a header row and one data row"));
+          if (lines.length < 1) {
+            reject(new Error("CSV file is empty"));
             return;
           }
 
-          const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+          // Check if first line is a header (contains 'code')
+          const firstLine = lines[0].toLowerCase();
+          const hasHeader = firstLine.includes('code');
+          const startLine = hasHeader ? 1 : 0;
 
-          // Validate header
-          if (!header.includes('code')) {
-            reject(new Error("CSV must contain a 'code' column"));
+          if (lines.length <= startLine) {
+            reject(new Error("CSV file must contain at least one coupon code"));
             return;
           }
 
-          const codeIndex = header.indexOf('code');
-          const descIndex = header.indexOf('description');
+          const coupons: Array<{ code: string }> = [];
 
-          const coupons: Array<{ code: string; description: string }> = [];
+          for (let i = startLine; i < lines.length; i++) {
+            const code = lines[i].split(',')[0].trim();
 
-          for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map(v => v.trim());
-
-            if (values.length === 0 || !values[codeIndex]) {
+            if (!code) {
               continue; // Skip empty lines
             }
 
-            const code = values[codeIndex];
-            const description = descIndex >= 0 ? (values[descIndex] || '') : '';
-
             // Validate code format
-            if (!/^[A-Z0-9-]+$/.test(code)) {
-              reject(new Error(`Invalid code format at line ${i + 1}: "${code}". Use only uppercase letters, numbers, and hyphens.`));
+            if (!/^[A-Za-z0-9-]+$/.test(code)) {
+              reject(new Error(`Invalid code format at line ${i + 1}: "${code}". Use only letters, numbers, and hyphens.`));
               return;
             }
 
-            coupons.push({ code, description });
+            coupons.push({ code });
           }
 
           if (coupons.length === 0) {
@@ -355,7 +347,6 @@ export const CampaignCoupons: React.FC = () => {
             .insert({
               campaign_id: campaignId,
               code: coupon.code,
-              description: coupon.description || null,
               is_active: true,
             });
 
@@ -413,21 +404,15 @@ export const CampaignCoupons: React.FC = () => {
 
     try {
       // Create CSV header
-      const header = "code,description,status,created_at\n";
+      const header = "code,status,created_at\n";
 
       // Create CSV rows
       const rows = coupons.map((coupon) => {
         const code = coupon.code;
-        const description = coupon.description || "";
         const status = coupon.is_redeemed ? "Redeemed" : "Available";
         const createdAt = new Date(coupon.created_at).toLocaleDateString();
 
-        // Escape commas in description by wrapping in quotes
-        const escapedDescription = description.includes(",")
-          ? `"${description}"`
-          : description;
-
-        return `${code},${escapedDescription},${status},${createdAt}`;
+        return `${code},${status},${createdAt}`;
       });
 
       // Combine header and rows
@@ -462,12 +447,6 @@ export const CampaignCoupons: React.FC = () => {
       dataIndex: "code",
       key: "code",
       render: (code: string) => <Text strong>{code}</Text>,
-    },
-    {
-      title: "Description",
-      dataIndex: "description",
-      key: "description",
-      render: (desc: string | null) => desc || <Text type="secondary">-</Text>,
     },
     {
       title: "Status",
@@ -659,19 +638,12 @@ export const CampaignCoupons: React.FC = () => {
             rules={[
               { required: true, message: "Please enter a coupon code" },
               {
-                pattern: /^[A-Z0-9-]+$/,
-                message: "Use only uppercase letters, numbers, and hyphens",
+                pattern: /^[A-Za-z0-9-]+$/,
+                message: "Use only letters, numbers, and hyphens",
               },
             ]}
           >
-            <Input placeholder="e.g., EO2025-001" />
-          </Form.Item>
-
-          <Form.Item label="Description" name="description">
-            <TextArea
-              rows={3}
-              placeholder="e.g., 20% off all eyewear"
-            />
+            <Input placeholder="e.g., EO2025-001 or test1234" />
           </Form.Item>
         </Form>
       </Modal>
@@ -690,19 +662,20 @@ export const CampaignCoupons: React.FC = () => {
           message="CSV Format"
           description={
             <div>
-              <p>Your CSV file should have the following format:</p>
+              <p>Your CSV file should contain one coupon code per line:</p>
               <pre style={{ background: "#f5f5f5", padding: "8px", borderRadius: "4px" }}>
-                code,description{"\n"}
-                EO2025-001,20% off all eyewear{"\n"}
-                EO2025-002,20% off all eyewear
+                code{"\n"}
+                EO2025-001{"\n"}
+                EO2025-002{"\n"}
+                test1234
               </pre>
               <p>
                 <strong>Requirements:</strong>
               </p>
               <ul>
-                <li>Header row must include 'code' column</li>
-                <li>Codes must use only uppercase letters, numbers, and hyphens</li>
-                <li>Description column is optional</li>
+                <li>One coupon code per line</li>
+                <li>Codes can use letters (upper or lowercase), numbers, and hyphens</li>
+                <li>Header row is optional</li>
               </ul>
             </div>
           }
