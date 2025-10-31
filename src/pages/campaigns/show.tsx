@@ -30,17 +30,30 @@ export const CampaignShow: React.FC = () => {
     loadZones();
   }, [record?.id]);
 
-  const isActive = () => {
-    if (!record) return false;
+  const getStatus = () => {
+    if (!record) return { status: "Unknown", color: "default" };
+
     const now = new Date();
     const startDate = new Date(record.start_date);
     const endDate = record.end_date ? new Date(record.end_date) : null;
 
-    return (
-      record.is_active &&
-      startDate <= now &&
-      (!endDate || endDate >= now)
-    );
+    // Disabled campaigns
+    if (!record.is_active) {
+      return { status: "Disabled", color: "red" };
+    }
+
+    // Expired campaigns
+    if (endDate && endDate < now) {
+      return { status: "Inactive", color: "red" };
+    }
+
+    // Future/scheduled campaigns
+    if (startDate > now) {
+      return { status: "Scheduled", color: "blue" };
+    }
+
+    // Active campaigns
+    return { status: "Active", color: "green" };
   };
 
   return (
@@ -101,9 +114,10 @@ export const CampaignShow: React.FC = () => {
           </Tag>
         </Descriptions.Item>
         <Descriptions.Item label="Status">
-          <Tag color={isActive() ? "green" : "red"}>
-            {isActive() ? "Active" : "Inactive"}
-          </Tag>
+          {(() => {
+            const { status, color } = getStatus();
+            return <Tag color={color}>{status}</Tag>;
+          })()}
         </Descriptions.Item>
         <Descriptions.Item label="Created">
           <DateField value={record?.created_at} />

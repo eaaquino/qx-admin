@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   DateField,
   DeleteButton,
@@ -9,9 +9,18 @@ import {
 } from "@refinedev/antd";
 import { Space, Table, Tag, Image } from "antd";
 import type { BaseRecord } from "@refinedev/core";
+import type { CrudFilters } from "@refinedev/core";
+import { MultiSelectFilter } from "../../components";
+
+type CampaignStatus = "active" | "scheduled" | "expired" | "disabled";
 
 export const CampaignList: React.FC = () => {
-  const { tableProps } = useTable({
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([
+    "active",
+    "scheduled",
+  ]);
+
+  const { tableProps, setFilters } = useTable({
     syncWithLocation: true,
     sorters: {
       initial: [
@@ -23,21 +32,108 @@ export const CampaignList: React.FC = () => {
     },
   });
 
-  const isActive = (record: BaseRecord) => {
+  const handleStatusFilterChange = (statuses: string[]) => {
+    setSelectedStatuses(statuses);
+
+    const newFilters: CrudFilters = [];
+
+    // Determine which is_active values to fetch from backend
+    const hasDisabled = statuses.includes("disabled");
+    const hasNonDisabled = statuses.some((s) =>
+      ["active", "scheduled", "expired"].includes(s)
+    );
+
+    if (hasDisabled && !hasNonDisabled) {
+      // Only disabled selected
+      newFilters.push({
+        field: "is_active",
+        operator: "eq",
+        value: false,
+      });
+    } else if (!hasDisabled && hasNonDisabled) {
+      // Only active/scheduled/expired selected
+      newFilters.push({
+        field: "is_active",
+        operator: "eq",
+        value: true,
+      });
+    }
+    // If both or neither selected, fetch all (no filter)
+
+    console.log("Setting filters:", newFilters);
+    setFilters(newFilters, "replace"); // Use "replace" to clear previous filters
+  };
+
+  // Apply initial filter on mount
+  useEffect(() => {
+    handleStatusFilterChange(selectedStatuses);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getStatus = (
+    record: BaseRecord
+  ): { status: string; statusType: CampaignStatus; color: string } => {
     const now = new Date();
     const startDate = new Date(record.start_date);
     const endDate = record.end_date ? new Date(record.end_date) : null;
 
-    return (
-      record.is_active &&
-      startDate <= now &&
-      (!endDate || endDate >= now)
-    );
+    // Disabled campaigns
+    if (!record.is_active) {
+      return { status: "Disabled", statusType: "disabled", color: "red" };
+    }
+
+    // Expired campaigns
+    if (endDate && endDate < now) {
+      return { status: "Expired", statusType: "expired", color: "red" };
+    }
+
+    // Future/scheduled campaigns
+    if (startDate > now) {
+      return { status: "Scheduled", statusType: "scheduled", color: "blue" };
+    }
+
+    // Active campaigns
+    return { status: "Active", statusType: "active", color: "green" };
   };
+
+  // Filter table data based on selected statuses (client-side filtering)
+  const filteredDataSource = useMemo(() => {
+    if (!tableProps.dataSource) {
+      return tableProps.dataSource;
+    }
+
+    // If no filters selected, show ALL campaigns
+    if (selectedStatuses.length === 0) {
+      return tableProps.dataSource;
+    }
+
+    // Filter by selected statuses
+    return tableProps.dataSource.filter((record) => {
+      const { statusType } = getStatus(record);
+      return selectedStatuses.includes(statusType);
+    });
+  }, [tableProps.dataSource, selectedStatuses]);
+
+  const filterOptions = [
+    { label: "Active", value: "active" },
+    { label: "Scheduled", value: "scheduled" },
+    { label: "Expired", value: "expired" },
+    { label: "Disabled", value: "disabled" },
+  ];
 
   return (
     <List>
-      <Table {...tableProps} rowKey="id">
+      <MultiSelectFilter
+        label="Status Filter"
+        options={filterOptions}
+        value={selectedStatuses}
+        onChange={handleStatusFilterChange}
+        placeholder="Select statuses to display..."
+      />
+      <Table
+        {...tableProps}
+        dataSource={filteredDataSource}
+        rowKey="id"
+      >
         <Table.Column
           dataIndex="image_url"
           title="Banner"
@@ -101,11 +197,10 @@ export const CampaignList: React.FC = () => {
         <Table.Column
           dataIndex="is_active"
           title="Status"
-          render={(_, record: BaseRecord) => (
-            <Tag color={isActive(record) ? "green" : "red"}>
-              {isActive(record) ? "Active" : "Inactive"}
-            </Tag>
-          )}
+          render={(_, record: BaseRecord) => {
+            const { status, color } = getStatus(record);
+            return <Tag color={color}>{status}</Tag>;
+          }}
         />
         <Table.Column
           title="Actions"
