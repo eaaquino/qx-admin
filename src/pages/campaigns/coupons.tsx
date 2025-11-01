@@ -9,7 +9,6 @@ import {
   Modal,
   Form,
   Input,
-  message,
   Popconfirm,
   Typography,
   Statistic,
@@ -17,6 +16,7 @@ import {
   Col,
   Upload,
   Alert,
+  App,
 } from "antd";
 import type { UploadFile } from "antd";
 import {
@@ -37,6 +37,8 @@ interface Coupon {
   is_active: boolean;
   created_at: string;
   is_redeemed?: boolean;
+  redeemed_by?: string;
+  redemption_id?: string;
 }
 
 interface Campaign {
@@ -56,6 +58,7 @@ export const CampaignCoupons: React.FC = () => {
   const { id: campaignId } = useParams<{ id: string }>();
   const go = useGo();
   const [form] = Form.useForm();
+  const { message } = App.useApp();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -115,23 +118,65 @@ export const CampaignCoupons: React.FC = () => {
 
       if (couponsError) throw couponsError;
 
-      // Get redemptions to mark which coupons are redeemed
+      // Get redemptions (without joining patients to avoid errors with old data)
       const { data: redemptionsData, error: redemptionsError } =
         await supabaseClient
           .from("coupon_redemptions")
-          .select("coupon_id")
+          .select("id, coupon_id, patient_id")
           .eq("campaign_id", campaignId);
 
       if (redemptionsError) throw redemptionsError;
 
-      const redeemedCouponIds = new Set(
-        redemptionsData.map((r) => r.coupon_id)
+      // Get unique patient IDs that exist
+      const patientIds = [...new Set(
+        (redemptionsData || [])
+          .map((r) => r.patient_id)
+          .filter((id) => id != null)
+      )];
+
+      // Fetch patient names if there are any patient IDs
+      let patientMap = new Map();
+      if (patientIds.length > 0) {
+        try {
+          const { data: patientsData, error: patientsError } = await supabaseClient
+            .from("patients")
+            .select("id, name")
+            .in("id", patientIds);
+
+          if (!patientsError && patientsData) {
+            patientMap = new Map(
+              patientsData.map((p: any) => [
+                p.id,
+                p.name || "Unknown Patient",
+              ])
+            );
+          }
+        } catch (err) {
+          console.error("Error fetching patient data:", err);
+          // Continue without patient names
+        }
+      }
+
+      // Create a map of coupon_id to redemption info
+      const redemptionMap = new Map(
+        (redemptionsData || []).map((r: any) => [
+          r.coupon_id,
+          {
+            redemption_id: r.id,
+            redeemed_by: r.patient_id ? (patientMap.get(r.patient_id) || "Unknown Patient") : "Unknown",
+          },
+        ])
       );
 
-      const couponsWithStatus = (couponsData || []).map((coupon) => ({
-        ...coupon,
-        is_redeemed: redeemedCouponIds.has(coupon.id),
-      }));
+      const couponsWithStatus = (couponsData || []).map((coupon) => {
+        const redemption = redemptionMap.get(coupon.id);
+        return {
+          ...coupon,
+          is_redeemed: !!redemption,
+          redeemed_by: redemption?.redeemed_by,
+          redemption_id: redemption?.redemption_id,
+        };
+      });
 
       setCoupons(couponsWithStatus);
 
@@ -153,32 +198,78 @@ export const CampaignCoupons: React.FC = () => {
 
     setRedemptionsLoading(true);
     try {
+      // Get redemptions without joins
       const { data, error } = await supabaseClient
         .from("coupon_redemptions")
-        .select(
-          `
-          id,
-          redeemed_at,
-          campaign_coupons (code),
-          patients (first_name, last_name),
-          doctors (first_name, last_name)
-        `
-        )
+        .select("id, redeemed_at, coupon_id, patient_id, redeemed_from_doctor_id")
         .eq("campaign_id", campaignId)
         .order("redeemed_at", { ascending: false });
 
       if (error) throw error;
 
+      // Get all unique IDs
+      const couponIds = [...new Set(data.map((r) => r.coupon_id).filter((id) => id))];
+      const patientIds = [...new Set(data.map((r) => r.patient_id).filter((id) => id))];
+      const doctorIds = [...new Set(data.map((r) => r.redeemed_from_doctor_id).filter((id) => id))];
+
+      // Fetch related data with error handling
+      const fetchCoupons = async () => {
+        if (couponIds.length === 0) return [];
+        const { data } = await supabaseClient.from("campaign_coupons").select("id, code").in("id", couponIds);
+        return data || [];
+      };
+
+      const fetchPatients = async () => {
+        if (patientIds.length === 0) return [];
+        try {
+          const { data, error } = await supabaseClient
+            .from("patients")
+            .select("id, name")
+            .in("id", patientIds);
+          if (error) {
+            console.error("Error fetching patients:", error);
+            return [];
+          }
+          return data || [];
+        } catch (err) {
+          console.error("Exception fetching patients:", err);
+          return [];
+        }
+      };
+
+      const fetchDoctors = async () => {
+        if (doctorIds.length === 0) return [];
+        const { data } = await supabaseClient.from("doctors").select("id, first_name, last_name").in("id", doctorIds);
+        return data || [];
+      };
+
+      const [couponsData, patientsData, doctorsData] = await Promise.all([
+        fetchCoupons(),
+        fetchPatients(),
+        fetchDoctors(),
+      ]);
+
+      // Create lookup maps
+      const couponMap = new Map(couponsData.map((c: any) => [c.id, c.code]));
+      const patientMap = new Map(
+        patientsData.map((p: any) => [
+          p.id,
+          p.name || "Unknown Patient"
+        ])
+      );
+      const doctorMap = new Map(
+        doctorsData.map((d: any) => [
+          d.id,
+          `Dr. ${d.first_name || ''} ${d.last_name || ''}`.trim()
+        ])
+      );
+
       const formattedRedemptions: Redemption[] = (data || []).map((r: any) => ({
         id: r.id,
         redeemed_at: r.redeemed_at,
-        coupon_code: r.campaign_coupons?.code || "N/A",
-        patient_name: r.patients
-          ? `${r.patients.first_name} ${r.patients.last_name}`
-          : "Unknown",
-        doctor_name: r.doctors
-          ? `Dr. ${r.doctors.first_name} ${r.doctors.last_name}`
-          : "N/A",
+        coupon_code: couponMap.get(r.coupon_id) || "N/A",
+        patient_name: patientMap.get(r.patient_id) || "Unknown",
+        doctor_name: doctorMap.get(r.redeemed_from_doctor_id) || "N/A",
       }));
 
       setRedemptions(formattedRedemptions);
@@ -215,11 +306,29 @@ export const CampaignCoupons: React.FC = () => {
     } catch (error: any) {
       if (error.code === "23503") {
         message.error(
-          "Cannot delete coupon that has been redeemed. Consider deactivating it instead."
+          "Cannot delete coupon that has been redeemed. Use 'Unredeem' to remove the redemption first."
         );
       } else {
         message.error(error.message || "Failed to delete coupon");
       }
+    }
+  };
+
+  const handleUnredeem = async (redemptionId: string, couponCode: string) => {
+    try {
+      const { error } = await supabaseClient
+        .from("coupon_redemptions")
+        .delete()
+        .eq("id", redemptionId);
+
+      if (error) throw error;
+
+      message.success(`Coupon ${couponCode} has been unredeemed`);
+
+      // Wait for both data refreshes to complete
+      await Promise.all([loadCoupons(), loadRedemptions()]);
+    } catch (error: any) {
+      message.error(error.message || "Failed to unredeem coupon");
     }
   };
 
@@ -452,9 +561,16 @@ export const CampaignCoupons: React.FC = () => {
       title: "Status",
       key: "status",
       render: (_: any, record: Coupon) => (
-        <Space>
+        <Space direction="vertical" size={0}>
           {record.is_redeemed ? (
-            <Text type="success">Redeemed</Text>
+            <>
+              <Text type="success">Redeemed</Text>
+              {record.redeemed_by && (
+                <Text type="secondary" style={{ fontSize: "12px" }}>
+                  by {record.redeemed_by}
+                </Text>
+              )}
+            </>
           ) : (
             <Text>Available</Text>
           )}
@@ -472,35 +588,50 @@ export const CampaignCoupons: React.FC = () => {
       title: "Actions",
       key: "actions",
       render: (_: any, record: Coupon) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            size="small"
-          >
-            Edit
-          </Button>
-          <Popconfirm
-            title="Delete this coupon?"
-            description={
-              record.is_redeemed
-                ? "This coupon has been redeemed and cannot be deleted."
-                : "This action cannot be undone."
-            }
-            onConfirm={() => handleDelete(record.id)}
-            disabled={record.is_redeemed}
-          >
+        <Space direction="vertical" size="small">
+          <Space>
             <Button
               type="link"
-              danger
-              icon={<DeleteOutlined />}
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
               size="small"
+            >
+              Edit
+            </Button>
+            <Popconfirm
+              title="Delete this coupon?"
+              description={
+                record.is_redeemed
+                  ? "This coupon has been redeemed. Unredeem it first to delete."
+                  : "This action cannot be undone."
+              }
+              onConfirm={() => handleDelete(record.id)}
               disabled={record.is_redeemed}
             >
-              Delete
-            </Button>
-          </Popconfirm>
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+                disabled={record.is_redeemed}
+              >
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+          {record.is_redeemed && record.redemption_id && (
+            <Popconfirm
+              title="Unredeem this coupon?"
+              description={`This will remove ${record.redeemed_by}'s redemption. The coupon will become available again. Use this only in emergencies.`}
+              onConfirm={() => handleUnredeem(record.redemption_id!, record.code)}
+              okText="Unredeem"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" size="small" danger>
+                Unredeem
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
