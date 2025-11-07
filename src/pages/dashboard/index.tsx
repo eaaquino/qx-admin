@@ -10,46 +10,46 @@ import {
 
 export const Dashboard: React.FC = () => {
   // Fetch queue entries
-  const { data: queueData } = useList({
+  const { query: queueQuery } = useList({
     resource: "queue_entries",
     pagination: {
       pageSize: 100,
     },
   });
 
-  const { data: doctorData } = useList({
+  const { query: doctorQuery } = useList({
     resource: "doctors",
   });
 
-  const { data: patientData } = useList({
+  const { query: patientQuery } = useList({
     resource: "patients",
   });
 
-  const queues = queueData?.data || [];
-  const doctors = doctorData?.data || [];
-  const patients = patientData?.data || [];
+  const queues = queueQuery.data?.data || [];
+  const doctors = doctorQuery.data?.data || [];
+  const patients = patientQuery.data?.data || [];
 
   // Calculate metrics
   const totalQueues = queues.length;
-  const activeQueues = queues.filter((q) =>
+  const activeQueues = queues.filter((q: any) =>
     ["waiting", "called", "in_progress"].includes(q.status)
   ).length;
   const completedToday = queues.filter(
-    (q) =>
+    (q: any) =>
       q.status === "completed" &&
       new Date(q.completed_time).toDateString() === new Date().toDateString()
   ).length;
 
   const avgWaitTime =
-    queues.reduce((sum, q) => sum + (q.estimated_wait_time || 0), 0) /
+    queues.reduce((sum: number, q: any) => sum + (q.estimated_wait_time || 0), 0) /
       queues.length || 0;
 
   // Top doctors by patient count
-  const doctorStats = doctors.map((doctor) => ({
+  const doctorStats = doctors.map((doctor: any) => ({
     name: `Dr. ${doctor.first_name} ${doctor.last_name}`,
-    patientCount: queues.filter((q) => q.doctor_id === doctor.id).length,
+    patientCount: queues.filter((q: any) => q.doctor_id === doctor.id).length,
     activeQueues: queues.filter(
-      (q) =>
+      (q: any) =>
         q.doctor_id === doctor.id &&
         ["waiting", "called", "in_progress"].includes(q.status)
     ).length,

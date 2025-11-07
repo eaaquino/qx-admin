@@ -3,8 +3,8 @@ import { Edit, useForm } from "@refinedev/antd";
 import { Form, Input, Switch } from "antd";
 
 export const CampaignZoneEdit: React.FC = () => {
-  const { formProps, saveButtonProps, queryResult } = useForm();
-  const isUniversal = queryResult?.data?.data?.is_universal;
+  const { formProps, saveButtonProps, query } = useForm();
+  const isUniversal = query?.data?.data?.is_universal;
 
   return (
     <Edit saveButtonProps={saveButtonProps}>

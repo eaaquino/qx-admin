@@ -3,12 +3,13 @@ import { Edit, useForm, useSelect } from "@refinedev/antd";
 import { Form, Input, InputNumber, Select } from "antd";
 
 export const QueueEdit: React.FC = () => {
-  const { formProps, saveButtonProps, queryResult } = useForm();
+  const { formProps, saveButtonProps, query } = useForm();
 
-  const queueData = queryResult?.data?.data;
+  const queueData = query?.data?.data;
 
   const { selectProps: doctorSelectProps } = useSelect({
     resource: "doctors",
+    // @ts-ignore - Type issue with optionLabel in Refine
     optionLabel: (item) => `Dr. ${item.first_name} ${item.last_name}`,
     optionValue: "id",
     defaultValue: queueData?.doctor_id,
@@ -16,6 +17,7 @@ export const QueueEdit: React.FC = () => {
 
   const { selectProps: patientSelectProps } = useSelect({
     resource: "patients",
+    // @ts-ignore - Type issue with optionLabel in Refine
     optionLabel: "name",
     optionValue: "id",
     defaultValue: queueData?.patient_id,

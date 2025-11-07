@@ -7,8 +7,8 @@ import { supabaseClient } from "../../utility";
 const { Title } = Typography;
 
 export const ClinicShow: React.FC = () => {
-  const { queryResult } = useShow();
-  const { data, isLoading } = queryResult;
+  const { query } = useShow();
+  const { data, isLoading } = query;
   const [zones, setZones] = useState<string[]>([]);
 
   const record = data?.data;

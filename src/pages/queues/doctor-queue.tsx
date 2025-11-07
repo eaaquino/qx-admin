@@ -15,10 +15,7 @@ interface QueueEntry {
   reason_for_visit: string;
   estimated_wait_time: number | null;
   check_in_time: string;
-  patients: {
-    name: string;
-    phone: string;
-  };
+  patients: any;
 }
 
 interface DoctorInfo {
@@ -26,9 +23,7 @@ interface DoctorInfo {
   first_name: string;
   last_name: string;
   specialization: string;
-  clinics: {
-    name: string;
-  };
+  clinics: any;
 }
 
 export const DoctorQueueMonitor: React.FC = () => {
@@ -162,7 +157,7 @@ export const DoctorQueueMonitor: React.FC = () => {
             <Tag color="blue" style={{ fontSize: "16px", fontWeight: "bold", padding: "4px 12px" }}>
               #{entry.queue_position}
             </Tag>
-            <Text strong style={{ fontSize: "16px" }}>{entry.patients.name}</Text>
+            <Text strong style={{ fontSize: "16px" }}>{entry.patients?.name || 'Unknown'}</Text>
           </Space>
           <Tag color={getStatusColor(entry.status)}>{entry.status.toUpperCase()}</Tag>
         </Space>
