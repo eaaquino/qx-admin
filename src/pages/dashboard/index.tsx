@@ -1,92 +1,89 @@
-import React from "react";
-import { useList } from "@refinedev/core";
-import { Card, Col, Row, Statistic, Table, Tag } from "antd";
+import React, { useState, useEffect } from "react";
+import { Card, Col, Row, Statistic, message } from "antd";
 import {
-  UserOutlined,
-  TeamOutlined,
   ClockCircleOutlined,
-  CheckCircleOutlined,
+  TeamOutlined,
+  UserOutlined,
+  CloseCircleOutlined,
 } from "@ant-design/icons";
+import { analyticsService, getDateRange, type AnalyticsData } from "../../services/analyticsService";
+import { DateRangeSelector, PeakHoursChart, DemographicsCharts } from "../../components/analytics";
 
 export const Dashboard: React.FC = () => {
-  // Fetch queue entries
-  const { query: queueQuery } = useList({
-    resource: "queue_entries",
-    pagination: {
-      pageSize: 100,
-    },
-  });
+  const [dateRange, setDateRange] = useState<string>("7days");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({});
 
-  const { query: doctorQuery } = useList({
-    resource: "doctors",
-  });
+  // Fetch analytics data
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    try {
+      const range = getDateRange(dateRange);
+      const response = await analyticsService.getAnalytics({
+        start_date: range.start_date,
+        end_date: range.end_date,
+      });
 
-  const { query: patientQuery } = useList({
-    resource: "patients",
-  });
+      setAnalyticsData(response.data);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      message.error("Failed to load analytics data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const queues = queueQuery.data?.data || [];
-  const doctors = doctorQuery.data?.data || [];
-  const patients = patientQuery.data?.data || [];
+  // Fetch on mount and when date range changes
+  useEffect(() => {
+    fetchAnalytics();
+  }, [dateRange]);
 
-  // Calculate metrics
-  const totalQueues = queues.length;
-  const activeQueues = queues.filter((q: any) =>
-    ["waiting", "called", "in_progress"].includes(q.status)
-  ).length;
-  const completedToday = queues.filter(
-    (q: any) =>
-      q.status === "completed" &&
-      new Date(q.completed_time).toDateString() === new Date().toDateString()
-  ).length;
-
-  const avgWaitTime =
-    queues.reduce((sum: number, q: any) => sum + (q.estimated_wait_time || 0), 0) /
-      queues.length || 0;
-
-  // Top doctors by patient count
-  const doctorStats = doctors.map((doctor: any) => ({
-    name: `Dr. ${doctor.first_name} ${doctor.last_name}`,
-    patientCount: queues.filter((q: any) => q.doctor_id === doctor.id).length,
-    activeQueues: queues.filter(
-      (q: any) =>
-        q.doctor_id === doctor.id &&
-        ["waiting", "called", "in_progress"].includes(q.status)
-    ).length,
-  }));
-
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      waiting: "blue",
-      called: "orange",
-      in_progress: "cyan",
-      completed: "green",
-      cancelled: "red",
-      no_show: "default",
-    };
-    return colors[status] || "default";
+  // Format time values
+  const formatTime = (minutes: number | undefined): string => {
+    if (!minutes) return "0";
+    if (minutes < 60) return `${Math.round(minutes)}`;
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
   return (
     <div style={{ padding: "24px" }}>
+      {/* Date Range Selector */}
+      <Row style={{ marginBottom: "24px" }}>
+        <Col span={24}>
+          <DateRangeSelector
+            value={dateRange}
+            onChange={setDateRange}
+            onRefresh={fetchAnalytics}
+            loading={loading}
+          />
+        </Col>
+      </Row>
+
+      {/* Key Metrics */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Active Queues"
-              value={activeQueues}
+              title="Avg Consultation Time"
+              value={formatTime(analyticsData.avg_consultation_time)}
+              suffix={analyticsData.avg_consultation_time && analyticsData.avg_consultation_time >= 60 ? "" : "min"}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: "#1890ff" }}
+              loading={loading}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Completed Today"
-              value={completedToday}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: "#52c41a" }}
+              title="Avg Waiting Time"
+              value={formatTime(analyticsData.avg_waiting_time)}
+              suffix={analyticsData.avg_waiting_time && analyticsData.avg_waiting_time >= 60 ? "" : "min"}
+              prefix={<TeamOutlined />}
+              valueStyle={{ color: "#faad14" }}
+              loading={loading}
             />
           </Card>
         </Col>
@@ -94,85 +91,43 @@ export const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="Total Patients"
-              value={patients.length}
+              value={analyticsData.total_patients || 0}
               prefix={<UserOutlined />}
+              valueStyle={{ color: "#52c41a" }}
+              loading={loading}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Avg Wait Time"
-              value={Math.round(avgWaitTime)}
-              suffix="min"
-              prefix={<TeamOutlined />}
+              title="Dropouts"
+              value={analyticsData.dropout_count || 0}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: "#f5222d" }}
+              loading={loading}
             />
           </Card>
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginTop: "24px" }}>
-        <Col xs={24} lg={12}>
-          <Card title="Doctor Performance" bordered={false}>
-            <Table
-              dataSource={doctorStats}
-              pagination={false}
-              size="small"
-              columns={[
-                {
-                  title: "Doctor",
-                  dataIndex: "name",
-                  key: "name",
-                },
-                {
-                  title: "Total Patients",
-                  dataIndex: "patientCount",
-                  key: "patientCount",
-                  sorter: (a, b) => a.patientCount - b.patientCount,
-                },
-                {
-                  title: "Active Queues",
-                  dataIndex: "activeQueues",
-                  key: "activeQueues",
-                  sorter: (a, b) => a.activeQueues - b.activeQueues,
-                },
-              ]}
-            />
-          </Card>
+      {/* Demographics */}
+      <Row style={{ marginTop: "24px" }}>
+        <Col span={24}>
+          <DemographicsCharts
+            data={analyticsData.demographics || {}}
+            loading={loading}
+          />
         </Col>
+      </Row>
 
-        <Col xs={24} lg={12}>
-          <Card title="Recent Queue Activity" bordered={false}>
-            <Table
-              dataSource={queues.slice(0, 10)}
-              pagination={false}
-              size="small"
-              columns={[
-                {
-                  title: "Position",
-                  dataIndex: "queue_position",
-                  key: "queue_position",
-                  width: 80,
-                },
-                {
-                  title: "Status",
-                  dataIndex: "status",
-                  key: "status",
-                  render: (status: string) => (
-                    <Tag color={getStatusColor(status)}>
-                      {status.toUpperCase()}
-                    </Tag>
-                  ),
-                },
-                {
-                  title: "Wait Time",
-                  dataIndex: "estimated_wait_time",
-                  key: "estimated_wait_time",
-                  render: (time: number) => `${time || "N/A"} min`,
-                },
-              ]}
-            />
-          </Card>
+      {/* Peak Hours */}
+      <Row gutter={[16, 16]} style={{ marginTop: "24px" }}>
+        <Col span={24}>
+          <PeakHoursChart
+            data={analyticsData.peak_hours || []}
+            loading={loading}
+          />
         </Col>
       </Row>
     </div>

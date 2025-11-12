@@ -137,7 +137,7 @@ export const DoctorEdit: React.FC = () => {
     setLoading(true);
     try {
       // Determine photo URL: null if removed, new photo if uploaded, or current photo
-      let photoToUse: string | null = currentPhotoUrl;
+      let photoToUse = currentPhotoUrl;
       if (photoRemoved) {
         photoToUse = null;
       } else if (newPhotoUrl) {
@@ -213,7 +213,7 @@ export const DoctorEdit: React.FC = () => {
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <Avatar
               size={80}
-              src={photoRemoved ? undefined : (newPhotoUrl || currentPhotoUrl)}
+              src={photoRemoved ? undefined : (newPhotoUrl || currentPhotoUrl || "none")}
               style={{ backgroundColor: "#004777", fontSize: "32px", fontWeight: "bold" }}
             >
               {form.getFieldValue("first_name")?.charAt(0)}
