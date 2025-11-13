@@ -52,6 +52,10 @@ import {
   CampaignShow,
 } from "./pages/campaigns";
 import { CampaignCoupons } from "./pages/campaigns/coupons";
+import {
+  CampaignAnalyticsList,
+  CampaignAnalyticsShow,
+} from "./pages/campaign-analytics";
 import { Login } from "./pages/login"
 
 import { supabaseClient } from "./utility";
@@ -131,6 +135,16 @@ function App() {
                     meta: {
                       canDelete: true,
                       label: "Campaign Zones",
+                      parent: "Ad Management",
+                    },
+                  },
+                  {
+                    name: "ad_campaigns",
+                    identifier: "campaign-analytics",
+                    list: "/campaign-analytics",
+                    show: "/campaign-analytics/show/:id",
+                    meta: {
+                      label: "Campaign Analytics",
                       parent: "Ad Management",
                     },
                   },
@@ -226,6 +240,10 @@ function App() {
                       <Route path="show/:id" element={<CampaignShow />} />
                     </Route>
                     <Route path="/ad_campaigns/:id/coupons" element={<CampaignCoupons />} />
+                    <Route path="/campaign-analytics">
+                      <Route index element={<CampaignAnalyticsList />} />
+                      <Route path="show/:id" element={<CampaignAnalyticsShow />} />
+                    </Route>
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
                   <Route
