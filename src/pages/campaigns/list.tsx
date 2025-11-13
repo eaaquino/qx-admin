@@ -11,6 +11,7 @@ import { Space, Table, Tag, Image } from "antd";
 import type { BaseRecord } from "@refinedev/core";
 import type { CrudFilters } from "@refinedev/core";
 import { MultiSelectFilter } from "../../components";
+import { supabaseClient } from "../../utility";
 
 type CampaignStatus = "active" | "scheduled" | "expired" | "disabled";
 
@@ -19,6 +20,28 @@ export const CampaignList: React.FC = () => {
     "active",
     "scheduled",
   ]);
+  const [selectedZones, setSelectedZones] = useState<string[]>([]);
+  const [campaignZones, setCampaignZones] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Fetch campaign zones using Supabase directly
+  useEffect(() => {
+    const fetchZones = async () => {
+      const { data, error } = await supabaseClient
+        .from("campaign_zones")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching campaign zones:", error);
+      } else {
+        console.log("Fetched campaign zones:", data);
+        setCampaignZones(data || []);
+      }
+    };
+
+    fetchZones();
+  }, []);
 
   const { tableProps, setFilters } = useTable({
     syncWithLocation: true,
@@ -29,6 +52,9 @@ export const CampaignList: React.FC = () => {
           order: "desc",
         },
       ],
+    },
+    meta: {
+      select: "*, campaign_zone_tags(zone_id, campaign_zones(id, name))",
     },
   });
 
@@ -95,23 +121,35 @@ export const CampaignList: React.FC = () => {
     return { status: "Active", statusType: "active", color: "green" };
   };
 
-  // Filter table data based on selected statuses (client-side filtering)
+  // Filter table data based on selected statuses and zones (client-side filtering)
   const filteredDataSource = useMemo(() => {
     if (!tableProps.dataSource) {
       return tableProps.dataSource;
     }
 
-    // If no filters selected, show ALL campaigns
-    if (selectedStatuses.length === 0) {
-      return tableProps.dataSource;
-    }
-
-    // Filter by selected statuses
     return tableProps.dataSource.filter((record) => {
-      const { statusType } = getStatus(record);
-      return selectedStatuses.includes(statusType);
+      // Filter by status
+      if (selectedStatuses.length > 0) {
+        const { statusType } = getStatus(record);
+        if (!selectedStatuses.includes(statusType)) {
+          return false;
+        }
+      }
+
+      // Filter by campaign zones
+      if (selectedZones.length > 0) {
+        const campaignZones = record.campaign_zone_tags?.map((tag: any) => tag.zone_id) || [];
+        const hasSelectedZone = campaignZones.some((zoneId: string) =>
+          selectedZones.includes(zoneId)
+        );
+        if (!hasSelectedZone) {
+          return false;
+        }
+      }
+
+      return true;
     });
-  }, [tableProps.dataSource, selectedStatuses]);
+  }, [tableProps.dataSource, selectedStatuses, selectedZones]);
 
   const filterOptions = [
     { label: "Active", value: "active" },
@@ -120,15 +158,31 @@ export const CampaignList: React.FC = () => {
     { label: "Disabled", value: "disabled" },
   ];
 
+  const zoneFilterOptions = useMemo(() => {
+    return campaignZones.map((zone) => ({
+      label: zone.name,
+      value: zone.id,
+    }));
+  }, [campaignZones]);
+
   return (
     <List>
-      <MultiSelectFilter
-        label="Status Filter"
-        options={filterOptions}
-        value={selectedStatuses}
-        onChange={handleStatusFilterChange}
-        placeholder="Select statuses to display..."
-      />
+      <Space style={{ marginBottom: 16 }} size="middle" wrap>
+        <MultiSelectFilter
+          label="Status Filter"
+          options={filterOptions}
+          value={selectedStatuses}
+          onChange={handleStatusFilterChange}
+          placeholder="Select statuses..."
+        />
+        <MultiSelectFilter
+          label="Campaign Zones"
+          options={zoneFilterOptions}
+          value={selectedZones}
+          onChange={setSelectedZones}
+          placeholder="Filter by zones..."
+        />
+      </Space>
       <Table
         {...tableProps}
         dataSource={filteredDataSource}
