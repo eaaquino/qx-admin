@@ -1,5 +1,5 @@
 import React from "react";
-import { Radio, Space } from "antd";
+import { Radio, Space, Button } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 interface DateRangeSelectorProps {
@@ -25,13 +25,13 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
         <Radio.Button value="lifetime">Lifetime</Radio.Button>
       </Radio.Group>
       {onRefresh && (
-        <Radio.Button
+        <Button
           onClick={onRefresh}
           disabled={loading}
           icon={<ReloadOutlined spin={loading} />}
         >
           Refresh
-        </Radio.Button>
+        </Button>
       )}
     </Space>
   );

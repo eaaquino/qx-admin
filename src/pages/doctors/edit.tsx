@@ -139,7 +139,7 @@ export const DoctorEdit: React.FC = () => {
       // Determine photo URL: null if removed, new photo if uploaded, or current photo
       let photoToUse = currentPhotoUrl;
       if (photoRemoved) {
-        photoToUse = null;
+        photoToUse = "";
       } else if (newPhotoUrl) {
         photoToUse = newPhotoUrl;
       }

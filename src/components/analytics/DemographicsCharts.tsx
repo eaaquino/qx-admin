@@ -31,9 +31,12 @@ export const DemographicsCharts: React.FC<DemographicsChartsProps> = ({ data, lo
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={({ age_group, percent }) => `${age_group}: ${(percent * 100).toFixed(0)}%`}
+                  label={(props: any) => {
+                    const { age_group, percent } = props;
+                    return `${age_group}: ${((percent || 0) * 100).toFixed(0)}%`;
+                  }}
                 >
-                  {data.age.map((entry, index) => (
+                  {data.age.map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -62,9 +65,12 @@ export const DemographicsCharts: React.FC<DemographicsChartsProps> = ({ data, lo
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={({ sex, percent }) => `${sex}: ${(percent * 100).toFixed(0)}%`}
+                  label={(props: any) => {
+                    const { sex, percent } = props;
+                    return `${sex}: ${((percent || 0) * 100).toFixed(0)}%`;
+                  }}
                 >
-                  {data.sex.map((entry, index) => (
+                  {data.sex.map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
