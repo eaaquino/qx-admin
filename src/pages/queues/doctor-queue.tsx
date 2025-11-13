@@ -24,6 +24,9 @@ interface DoctorInfo {
   last_name: string;
   specialization: string;
   clinics: any;
+  session_state: string | null;
+  session_start_time: string | null;
+  total_active_duration: number | null;
 }
 
 export const DoctorQueueMonitor: React.FC = () => {
@@ -41,7 +44,7 @@ export const DoctorQueueMonitor: React.FC = () => {
 
       const { data, error } = await supabaseClient
         .from("doctors")
-        .select("id, first_name, last_name, specialization, clinics(name)")
+        .select("id, first_name, last_name, specialization, session_state, session_start_time, total_active_duration, clinics(name)")
         .eq("id", doctorId)
         .single();
 
@@ -209,8 +212,14 @@ export const DoctorQueueMonitor: React.FC = () => {
           <Descriptions style={{ marginTop: 16 }} column={3} size="small">
             <Descriptions.Item label="Clinic">{doctorInfo.clinics?.name || "N/A"}</Descriptions.Item>
             <Descriptions.Item label="Specialization">{doctorInfo.specialization || "N/A"}</Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag color="green">● LIVE</Tag>
+            <Descriptions.Item label="Session Status">
+              {doctorInfo.session_state === "active" ? (
+                <Tag color="green">● ACTIVE</Tag>
+              ) : doctorInfo.session_state === "paused" ? (
+                <Tag color="orange">⏸ PAUSED</Tag>
+              ) : (
+                <Tag color="default">⏹ STOPPED</Tag>
+              )}
             </Descriptions.Item>
           </Descriptions>
         </Card>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { List } from "@refinedev/antd";
-import { Space, Table, Tag, Button, Card, Typography } from "antd";
+import { Space, Table, Tag, Button, Card, Typography, Switch } from "antd";
 import { EyeOutlined, SyncOutlined } from "@ant-design/icons";
 import { supabaseClient } from "../../utility";
 
@@ -15,12 +15,16 @@ interface DoctorQueueSummary {
   in_progress: number;
   completed_today: number;
   latest_checkin?: string;
+  session_state: string | null;
+  session_start_time?: string | null;
+  total_active_duration?: number;
 }
 
 export const QueueList: React.FC = () => {
   const [queueSummaries, setQueueSummaries] = useState<DoctorQueueSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(30);
+  const [showAllDoctors, setShowAllDoctors] = useState(false);
   const REFRESH_INTERVAL = 30000; // 30 seconds
 
   const fetchQueueSummaries = async () => {
@@ -29,64 +33,92 @@ export const QueueList: React.FC = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Fetch all queue entries with doctor and clinic info
-      const { data: queueEntries, error } = await supabaseClient
-        .from("queue_entries")
+      // Step 1: Fetch all doctors with session info
+      let doctorsQuery = supabaseClient
+        .from("doctors")
         .select(`
           id,
-          doctor_id,
-          status,
-          check_in_time,
-          doctors(id, first_name, last_name, clinic_id, clinics(name))
-        `)
+          first_name,
+          last_name,
+          clinic_id,
+          session_state,
+          session_start_time,
+          total_active_duration,
+          clinics(name)
+        `);
+
+      // If not showing all doctors, only show those with active/paused sessions
+      if (!showAllDoctors) {
+        doctorsQuery = doctorsQuery.in("session_state", ["active", "paused"]);
+      }
+
+      const { data: doctors, error: doctorsError } = await doctorsQuery;
+
+      if (doctorsError) throw doctorsError;
+
+      // Step 2: Fetch all queue entries for today
+      const { data: queueEntries, error: queueError } = await supabaseClient
+        .from("queue_entries")
+        .select("id, doctor_id, status, check_in_time")
         .gte("check_in_time", today.toISOString());
 
-      if (error) throw error;
+      if (queueError) throw queueError;
 
-      // Group by doctor and calculate summaries
+      // Step 3: Build summary map from doctors (not queue entries)
       const summaryMap = new Map<string, DoctorQueueSummary>();
 
+      doctors?.forEach((doctor: any) => {
+        summaryMap.set(doctor.id, {
+          doctor_id: doctor.id,
+          doctor_name: `Dr. ${doctor.first_name} ${doctor.last_name}`,
+          clinic_name: doctor.clinics?.name,
+          total_queue: 0,
+          waiting: 0,
+          in_progress: 0,
+          completed_today: 0,
+          session_state: doctor.session_state,
+          session_start_time: doctor.session_start_time,
+          total_active_duration: doctor.total_active_duration,
+        });
+      });
+
+      // Step 4: Add queue entry counts to doctor summaries
       queueEntries?.forEach((entry: any) => {
-        const doctorId = entry.doctor_id;
+        const summary = summaryMap.get(entry.doctor_id);
 
-        if (!summaryMap.has(doctorId)) {
-          summaryMap.set(doctorId, {
-            doctor_id: doctorId,
-            doctor_name: `Dr. ${entry.doctors.first_name} ${entry.doctors.last_name}`,
-            clinic_name: entry.doctors.clinics?.name,
-            total_queue: 0,
-            waiting: 0,
-            in_progress: 0,
-            completed_today: 0,
-            latest_checkin: entry.check_in_time,
-          });
-        }
+        if (summary) {
+          // Count by status
+          if (entry.status === "waiting") {
+            summary.waiting++;
+            summary.total_queue++;
+          } else if (entry.status === "in_progress" || entry.status === "called") {
+            summary.in_progress++;
+            summary.total_queue++;
+          } else if (entry.status === "completed") {
+            summary.completed_today++;
+          }
 
-        const summary = summaryMap.get(doctorId)!;
-
-        // Count by status
-        if (entry.status === "waiting") {
-          summary.waiting++;
-          summary.total_queue++;
-        } else if (entry.status === "in_progress" || entry.status === "called") {
-          summary.in_progress++;
-          summary.total_queue++;
-        } else if (entry.status === "completed") {
-          summary.completed_today++;
-        }
-
-        // Update latest check-in
-        if (!summary.latest_checkin || entry.check_in_time > summary.latest_checkin) {
-          summary.latest_checkin = entry.check_in_time;
+          // Update latest check-in
+          if (!summary.latest_checkin || entry.check_in_time > summary.latest_checkin) {
+            summary.latest_checkin = entry.check_in_time;
+          }
         }
       });
 
-      // Filter to doctors with active queues OR completed patients today
-      const activeDoctors = Array.from(summaryMap.values())
-        .filter((summary) => summary.total_queue > 0 || summary.completed_today > 0)
-        .sort((a, b) => b.total_queue - a.total_queue);
+      // Step 5: Sort - active sessions first, then by queue count
+      const sortedDoctors = Array.from(summaryMap.values()).sort((a, b) => {
+        // Primary sort: active/paused sessions first
+        const aHasSession = a.session_state === 'active' || a.session_state === 'paused';
+        const bHasSession = b.session_state === 'active' || b.session_state === 'paused';
 
-      setQueueSummaries(activeDoctors);
+        if (aHasSession && !bHasSession) return -1;
+        if (!aHasSession && bHasSession) return 1;
+
+        // Secondary sort: by total queue count
+        return b.total_queue - a.total_queue;
+      });
+
+      setQueueSummaries(sortedDoctors);
       setCountdown(30); // Reset countdown
     } catch (error) {
       console.error("Error fetching queue summaries:", error);
@@ -95,10 +127,10 @@ export const QueueList: React.FC = () => {
     }
   };
 
-  // Initial fetch
+  // Initial fetch and re-fetch when filter changes
   useEffect(() => {
     fetchQueueSummaries();
-  }, []);
+  }, [showAllDoctors]);
 
   // Polling interval
   useEffect(() => {
@@ -120,9 +152,18 @@ export const QueueList: React.FC = () => {
 
   return (
     <List
-      title="Active Queues"
+      title={showAllDoctors ? "All Doctors" : "Active Sessions"}
       headerButtons={
         <Space>
+          <Space>
+            <Text type="secondary">Show All Doctors:</Text>
+            <Switch
+              checked={showAllDoctors}
+              onChange={(checked) => setShowAllDoctors(checked)}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </Space>
           <Text type="secondary">
             Refreshing in {countdown}s
           </Text>
@@ -138,7 +179,11 @@ export const QueueList: React.FC = () => {
     >
       {queueSummaries.length === 0 ? (
         <Card>
-          <Text type="secondary">No active queues at the moment</Text>
+          <Text type="secondary">
+            {showAllDoctors
+              ? "No doctors found"
+              : "No doctors with active sessions at the moment"}
+          </Text>
         </Card>
       ) : (
         <Table
@@ -156,6 +201,19 @@ export const QueueList: React.FC = () => {
             dataIndex="clinic_name"
             title="Clinic"
             render={(value: string) => value || "N/A"}
+          />
+          <Table.Column
+            dataIndex="session_state"
+            title="Session Status"
+            render={(value: string | null) => {
+              if (value === "active") {
+                return <Tag color="green">● ACTIVE</Tag>;
+              } else if (value === "paused") {
+                return <Tag color="orange">⏸ PAUSED</Tag>;
+              } else {
+                return <Tag color="default">⏹ STOPPED</Tag>;
+              }
+            }}
           />
           <Table.Column
             dataIndex="total_queue"
