@@ -30,8 +30,19 @@ export const QueueList: React.FC = () => {
   const fetchQueueSummaries = async () => {
     setLoading(true);
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Calculate "today" in Philippine timezone (GMT+8)
+      // Since database is set to Asia/Manila, we need to match that timezone
+      const now = new Date();
+      const phDateString = now.toLocaleString('en-US', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+
+      // Parse MM/DD/YYYY format and create midnight in PH time
+      const [month, day, year] = phDateString.split('/');
+      const today = new Date(`${year}-${month}-${day}T00:00:00+08:00`);
 
       // Step 1: Fetch all doctors with session info
       let doctorsQuery = supabaseClient

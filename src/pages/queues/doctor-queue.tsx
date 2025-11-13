@@ -65,8 +65,18 @@ export const DoctorQueueMonitor: React.FC = () => {
 
     setLoading(true);
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Calculate "today" in Philippine timezone (GMT+8)
+      const now = new Date();
+      const phDateString = now.toLocaleString('en-US', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+
+      // Parse MM/DD/YYYY format and create midnight in PH time
+      const [month, day, year] = phDateString.split('/');
+      const today = new Date(`${year}-${month}-${day}T00:00:00+08:00`);
 
       const { data, error } = await supabaseClient
         .from("queue_entries")
