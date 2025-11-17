@@ -235,6 +235,7 @@ export const CampaignAnalyticsList: React.FC = () => {
 
   const dateRangeOptions = [
     { label: "Today", value: "today" },
+    { label: "Yesterday", value: "yesterday" },
     { label: "Last 7 Days", value: "7days" },
     { label: "Last 30 Days", value: "1month" },
     { label: "Last Year", value: "1year" },

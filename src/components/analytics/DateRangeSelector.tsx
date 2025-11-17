@@ -19,6 +19,7 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
     <Space>
       <Radio.Group value={value} onChange={(e) => onChange(e.target.value)} buttonStyle="solid">
         <Radio.Button value="today">Today</Radio.Button>
+        <Radio.Button value="yesterday">Yesterday</Radio.Button>
         <Radio.Button value="7days">7 Days</Radio.Button>
         <Radio.Button value="1month">1 Month</Radio.Button>
         <Radio.Button value="1year">1 Year</Radio.Button>

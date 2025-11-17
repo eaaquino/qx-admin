@@ -101,6 +101,7 @@ export const CampaignAnalyticsShow: React.FC = () => {
 
   const dateRangeOptions = [
     { label: "Today", value: "today" },
+    { label: "Yesterday", value: "yesterday" },
     { label: "Last 7 Days", value: "7days" },
     { label: "Last 30 Days", value: "1month" },
     { label: "Last Year", value: "1year" },
@@ -112,14 +113,14 @@ export const CampaignAnalyticsShow: React.FC = () => {
   const generateTrendData = () => {
     if (!analytics) return [];
 
-    const days = dateRangePreset === "today" ? 24 : dateRangePreset === "7days" ? 7 : 30;
+    const days = (dateRangePreset === "today" || dateRangePreset === "yesterday") ? 24 : dateRangePreset === "7days" ? 7 : 30;
     const data = [];
 
     for (let i = 0; i < days; i++) {
       // Distribute totals across time period with some variance
       const variance = 0.8 + Math.random() * 0.4; // 80% to 120%
       data.push({
-        name: dateRangePreset === "today" ? `${i}:00` : `Day ${i + 1}`,
+        name: (dateRangePreset === "today" || dateRangePreset === "yesterday") ? `${i}:00` : `Day ${i + 1}`,
         impressions: Math.round((analytics.impressions / days) * variance),
         clicks: Math.round((analytics.clicks / days) * variance),
         redemptions: Math.round((analytics.redeems / days) * variance),

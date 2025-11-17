@@ -5,6 +5,7 @@ import {
   TeamOutlined,
   UserOutlined,
   CloseCircleOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import { analyticsService, getDateRange, type AnalyticsData } from "../../services/analyticsService";
 import { DateRangeSelector, PeakHoursChart, DemographicsCharts } from "../../components/analytics";
@@ -63,7 +64,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Key Metrics */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={8}>
           <Card>
             <Statistic
               title="Avg Consultation Time"
@@ -75,7 +76,7 @@ export const Dashboard: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={8}>
           <Card>
             <Statistic
               title="Avg Waiting Time"
@@ -87,7 +88,7 @@ export const Dashboard: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={8}>
           <Card>
             <Statistic
               title="Total Patients"
@@ -98,13 +99,28 @@ export const Dashboard: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+      </Row>
+
+      {/* Second Row - Cancellations and No-Shows */}
+      <Row gutter={[16, 16]} style={{ marginTop: "16px" }}>
+        <Col xs={24} sm={12}>
           <Card>
             <Statistic
-              title="Dropouts"
-              value={analyticsData.dropout_count || 0}
+              title="Cancellations"
+              value={analyticsData.cancelled_count || 0}
               prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: "#f5222d" }}
+              valueStyle={{ color: "#ff7875" }}
+              loading={loading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Card>
+            <Statistic
+              title="No-Shows"
+              value={analyticsData.no_show_count || 0}
+              prefix={<StopOutlined />}
+              valueStyle={{ color: "#cf1322" }}
               loading={loading}
             />
           </Card>

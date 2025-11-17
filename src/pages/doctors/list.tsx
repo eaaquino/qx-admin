@@ -6,10 +6,14 @@ import {
   ShowButton,
   useTable,
 } from "@refinedev/antd";
-import { Space, Table, Tag, Avatar } from "antd";
+import { Space, Table, Tag, Avatar, Button, Dropdown } from "antd";
+import { BarChartOutlined, DownOutlined } from "@ant-design/icons";
 import type { BaseRecord } from "@refinedev/core";
+import type { MenuProps } from "antd";
+import { useNavigate } from "react-router";
 
 export const DoctorList: React.FC = () => {
+  const navigate = useNavigate();
   const { tableProps } = useTable({
     syncWithLocation: true,
   });
@@ -67,13 +71,33 @@ export const DoctorList: React.FC = () => {
         <Table.Column
           title="Actions"
           dataIndex="actions"
-          render={(_, record: BaseRecord) => (
-            <Space>
-              <EditButton hideText size="small" recordItemId={record.id} />
-              <ShowButton hideText size="small" recordItemId={record.id} />
-              <DeleteButton hideText size="small" recordItemId={record.id} />
-            </Space>
-          )}
+          render={(_, record: BaseRecord) => {
+            const analyticsItems: MenuProps['items'] = [
+              {
+                key: 'performance',
+                label: 'Performance Metrics',
+                onClick: () => navigate(`/doctors/analytics/performance/${record.id}`),
+              },
+              {
+                key: 'history',
+                label: 'Patient History',
+                onClick: () => navigate(`/doctors/analytics/history/${record.id}`),
+              },
+            ];
+
+            return (
+              <Space>
+                <EditButton hideText size="small" recordItemId={record.id} />
+                <ShowButton hideText size="small" recordItemId={record.id} />
+                <Dropdown menu={{ items: analyticsItems }} trigger={['click']}>
+                  <Button size="small" icon={<BarChartOutlined />}>
+                    <DownOutlined />
+                  </Button>
+                </Dropdown>
+                <DeleteButton hideText size="small" recordItemId={record.id} />
+              </Space>
+            );
+          }}
         />
       </Table>
     </List>

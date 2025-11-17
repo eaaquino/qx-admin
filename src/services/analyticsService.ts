@@ -12,7 +12,11 @@ export interface AnalyticsData {
   avg_consultation_time?: number;
   avg_waiting_time?: number;
   total_patients?: number;
-  dropout_count?: number;
+  cancelled_count?: number;
+  no_show_count?: number;
+  avg_rating?: number;
+  rating_count?: number;
+  rating_distribution?: Array<{ rating: number; count: number }>;
   demographics?: {
     age?: Array<{ age_group: string; patient_count: number }>;
     sex?: Array<{ sex: string; patient_count: number }>;
@@ -66,6 +70,18 @@ export function getDateRange(preset: string): { start_date: string | null; end_d
       return {
         start_date: startOfDay.toISOString(),
         end_date: endOfDay.toISOString()
+      };
+    }
+
+    case 'yesterday': {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      const endOfYesterday = new Date(yesterday);
+      endOfYesterday.setHours(23, 59, 59, 999);
+      return {
+        start_date: yesterday.toISOString(),
+        end_date: endOfYesterday.toISOString()
       };
     }
 

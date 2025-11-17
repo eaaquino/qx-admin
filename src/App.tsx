@@ -25,7 +25,7 @@ import { Header } from "./components/header";
 import { ColorModeContextProvider } from "./contexts/color-mode";
 import { Dashboard } from "./pages/dashboard";
 import { QueueEdit, QueueList, QueueShow, DoctorQueueMonitor } from "./pages/queues";
-import { DoctorEdit, DoctorList, DoctorShow } from "./pages/doctors";
+import { DoctorEdit, DoctorList, DoctorShow, DoctorAnalyticsPerformance, DoctorAnalyticsHistory } from "./pages/doctors";
 import { PatientList, PatientShow } from "./pages/patients";
 import {
   ClinicCreate,
@@ -210,6 +210,8 @@ function App() {
                       <Route index element={<DoctorList />} />
                       <Route path="edit/:id" element={<DoctorEdit />} />
                       <Route path="show/:id" element={<DoctorShow />} />
+                      <Route path="analytics/performance/:id" element={<DoctorAnalyticsPerformance />} />
+                      <Route path="analytics/history/:id" element={<DoctorAnalyticsHistory />} />
                     </Route>
                     <Route path="/patients">
                       <Route index element={<PatientList />} />
