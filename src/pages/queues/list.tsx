@@ -18,7 +18,19 @@ interface DoctorQueueSummary {
   session_state: string | null;
   session_start_time?: string | null;
   total_active_duration?: number;
+  is_in_timestamp: string | null;
 }
+
+// Check if doctor is clocked in (timestamp is from today in PH timezone)
+const isDoctorClockedIn = (timestamp: string | null): boolean => {
+  if (!timestamp) return false;
+  const timestampDate = new Date(timestamp);
+  const now = new Date();
+
+  // Compare dates in Philippine timezone
+  const formatPH = (d: Date) => d.toLocaleDateString('en-US', { timeZone: 'Asia/Manila' });
+  return formatPH(timestampDate) === formatPH(now);
+};
 
 export const QueueList: React.FC = () => {
   const [queueSummaries, setQueueSummaries] = useState<DoctorQueueSummary[]>([]);
@@ -55,17 +67,24 @@ export const QueueList: React.FC = () => {
           session_state,
           session_start_time,
           total_active_duration,
+          is_in_timestamp,
           clinics(name)
         `);
 
-      // If not showing all doctors, only show those with active/paused sessions
+      // If not showing all doctors, only show those who are clocked in today
+      // We filter by is_in_timestamp not being null, then filter client-side for today
       if (!showAllDoctors) {
-        doctorsQuery = doctorsQuery.in("session_state", ["active", "paused"]);
+        doctorsQuery = doctorsQuery.not("is_in_timestamp", "is", null);
       }
 
       const { data: doctors, error: doctorsError } = await doctorsQuery;
 
       if (doctorsError) throw doctorsError;
+
+      // Filter to only include doctors clocked in today (if not showing all)
+      const filteredDoctors = showAllDoctors
+        ? doctors
+        : doctors?.filter((doctor: any) => isDoctorClockedIn(doctor.is_in_timestamp));
 
       // Step 2: Fetch all queue entries for today
       const { data: queueEntries, error: queueError } = await supabaseClient
@@ -78,7 +97,7 @@ export const QueueList: React.FC = () => {
       // Step 3: Build summary map from doctors (not queue entries)
       const summaryMap = new Map<string, DoctorQueueSummary>();
 
-      doctors?.forEach((doctor: any) => {
+      filteredDoctors?.forEach((doctor: any) => {
         summaryMap.set(doctor.id, {
           doctor_id: doctor.id,
           doctor_name: `Dr. ${doctor.first_name} ${doctor.last_name}`,
@@ -90,6 +109,7 @@ export const QueueList: React.FC = () => {
           session_state: doctor.session_state,
           session_start_time: doctor.session_start_time,
           total_active_duration: doctor.total_active_duration,
+          is_in_timestamp: doctor.is_in_timestamp,
         });
       });
 
@@ -116,14 +136,14 @@ export const QueueList: React.FC = () => {
         }
       });
 
-      // Step 5: Sort - active sessions first, then by queue count
+      // Step 5: Sort - clocked in first, then by queue count
       const sortedDoctors = Array.from(summaryMap.values()).sort((a, b) => {
-        // Primary sort: active/paused sessions first
-        const aHasSession = a.session_state === 'active' || a.session_state === 'paused';
-        const bHasSession = b.session_state === 'active' || b.session_state === 'paused';
+        // Primary sort: clocked in doctors first
+        const aClockedIn = isDoctorClockedIn(a.is_in_timestamp);
+        const bClockedIn = isDoctorClockedIn(b.is_in_timestamp);
 
-        if (aHasSession && !bHasSession) return -1;
-        if (!aHasSession && bHasSession) return 1;
+        if (aClockedIn && !bClockedIn) return -1;
+        if (!aClockedIn && bClockedIn) return 1;
 
         // Secondary sort: by total queue count
         return b.total_queue - a.total_queue;
@@ -163,7 +183,7 @@ export const QueueList: React.FC = () => {
 
   return (
     <List
-      title={showAllDoctors ? "All Doctors" : "Active Sessions"}
+      title={showAllDoctors ? "All Doctors" : "Clocked In Doctors"}
       headerButtons={
         <Space>
           <Space>
@@ -193,7 +213,7 @@ export const QueueList: React.FC = () => {
           <Text type="secondary">
             {showAllDoctors
               ? "No doctors found"
-              : "No doctors with active sessions at the moment"}
+              : "No doctors clocked in at the moment"}
           </Text>
         </Card>
       ) : (
@@ -214,15 +234,13 @@ export const QueueList: React.FC = () => {
             render={(value: string) => value || "N/A"}
           />
           <Table.Column
-            dataIndex="session_state"
-            title="Session Status"
+            dataIndex="is_in_timestamp"
+            title="Clock-In Status"
             render={(value: string | null) => {
-              if (value === "active") {
-                return <Tag color="green">● ACTIVE</Tag>;
-              } else if (value === "paused") {
-                return <Tag color="orange">⏸ PAUSED</Tag>;
+              if (isDoctorClockedIn(value)) {
+                return <Tag color="green">CLOCKED IN</Tag>;
               } else {
-                return <Tag color="default">⏹ STOPPED</Tag>;
+                return <Tag color="red">CLOCKED OUT</Tag>;
               }
             }}
           />
