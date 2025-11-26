@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Card, Typography, Tag, Space, Button, Descriptions, Row, Col, Tooltip } from "antd";
-import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Card, Typography, Tag, Space, Button, Descriptions, Row, Col, Tooltip, theme } from "antd";
+import { ArrowLeftOutlined, ReloadOutlined, SyncOutlined } from "@ant-design/icons";
 import { supabaseClient } from "../../utility";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { ColorModeContext } from "../../contexts/color-mode";
 
 const { Title, Text } = Typography;
+const { useToken } = theme;
 
 interface QueueEntry {
   id: string;
@@ -69,7 +70,18 @@ export const DoctorQueueMonitor: React.FC = () => {
   const [doctorInfo, setDoctorInfo] = useState<DoctorInfo | null>(null);
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const [countdown, setCountdown] = useState(30);
+  const { mode } = useContext(ColorModeContext);
+  const { token } = useToken();
+  const isDarkMode = mode === "dark";
+  const REFRESH_INTERVAL = 30000; // 30 seconds
+
+  // Column header colors that adapt to dark mode
+  const columnColors = {
+    ongoing: isDarkMode ? token.colorInfoBg : "#e6f7ff",
+    waiting: isDarkMode ? token.colorWarningBg : "#fff7e6",
+    completed: isDarkMode ? token.colorSuccessBg : "#f6ffed",
+  };
 
   // Fetch doctor info
   useEffect(() => {
@@ -145,33 +157,24 @@ export const DoctorQueueMonitor: React.FC = () => {
     fetchQueueEntries();
   }, [doctorId]);
 
-  // Real-time subscription
+  // Polling interval for queue updates
   useEffect(() => {
-    if (!doctorId) return;
+    const interval = setInterval(() => {
+      fetchQueueEntries();
+      setCountdown(30);
+    }, REFRESH_INTERVAL);
 
-    const realtimeChannel = supabaseClient
-      .channel(`queue-doctor-${doctorId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "queue_entries",
-          filter: `doctor_id=eq.${doctorId}`,
-        },
-        () => {
-          // Refetch on any change
-          fetchQueueEntries();
-        }
-      )
-      .subscribe();
-
-    setChannel(realtimeChannel);
-
-    return () => {
-      realtimeChannel.unsubscribe();
-    };
+    return () => clearInterval(interval);
   }, [doctorId]);
+
+  // Countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 30));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -387,13 +390,21 @@ export const DoctorQueueMonitor: React.FC = () => {
                 </Tag>
               )}
             </Space>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={fetchQueueEntries}
-              loading={loading}
-            >
-              Refresh
-            </Button>
+            <Space>
+              <Text type="secondary">
+                Refreshing in {countdown}s
+              </Text>
+              <Button
+                icon={<SyncOutlined spin={loading} />}
+                onClick={() => {
+                  fetchQueueEntries();
+                  setCountdown(30);
+                }}
+                loading={loading}
+              >
+                Refresh Now
+              </Button>
+            </Space>
           </Space>
 
           <Descriptions style={{ marginTop: 16 }} column={3} size="small">
@@ -422,7 +433,7 @@ export const DoctorQueueMonitor: React.FC = () => {
                   <Tag color="cyan">{ongoing.length}</Tag>
                 </Space>
               }
-              headStyle={{ backgroundColor: "#e6f7ff" }}
+              headStyle={{ backgroundColor: columnColors.ongoing }}
             >
               {ongoing.length === 0 ? (
                 <Text type="secondary">No ongoing patients</Text>
@@ -441,7 +452,7 @@ export const DoctorQueueMonitor: React.FC = () => {
                   <Tag color="orange">{waiting.length}</Tag>
                 </Space>
               }
-              headStyle={{ backgroundColor: "#fff7e6" }}
+              headStyle={{ backgroundColor: columnColors.waiting }}
             >
               {waiting.length === 0 ? (
                 <Text type="secondary">No patients waiting</Text>
@@ -460,7 +471,7 @@ export const DoctorQueueMonitor: React.FC = () => {
                   <Tag color="green">{completed.length}</Tag>
                 </Space>
               }
-              headStyle={{ backgroundColor: "#f6ffed" }}
+              headStyle={{ backgroundColor: columnColors.completed }}
             >
               {completed.length === 0 ? (
                 <Text type="secondary">No completed patients</Text>
