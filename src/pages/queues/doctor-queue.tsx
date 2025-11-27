@@ -407,18 +407,9 @@ export const DoctorQueueMonitor: React.FC = () => {
             </Space>
           </Space>
 
-          <Descriptions style={{ marginTop: 16 }} column={3} size="small">
+          <Descriptions style={{ marginTop: 16 }} column={2} size="small">
             <Descriptions.Item label="Clinic">{doctorInfo.clinics?.name || "N/A"}</Descriptions.Item>
             <Descriptions.Item label="Specialization">{doctorInfo.specialization || "N/A"}</Descriptions.Item>
-            <Descriptions.Item label="Session Status">
-              {doctorInfo.session_state === "active" ? (
-                <Tag color="green">● ACTIVE</Tag>
-              ) : doctorInfo.session_state === "paused" ? (
-                <Tag color="orange">⏸ PAUSED</Tag>
-              ) : (
-                <Tag color="default">⏹ STOPPED</Tag>
-              )}
-            </Descriptions.Item>
           </Descriptions>
         </Card>
 
