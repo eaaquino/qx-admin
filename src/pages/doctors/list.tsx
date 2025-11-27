@@ -7,7 +7,7 @@ import {
   useTable,
 } from "@refinedev/antd";
 import { Space, Table, Tag, Avatar, Button, Dropdown } from "antd";
-import { BarChartOutlined, DownOutlined } from "@ant-design/icons";
+import { BarChartOutlined, DownOutlined, CalendarOutlined } from "@ant-design/icons";
 import type { BaseRecord } from "@refinedev/core";
 import type { MenuProps } from "antd";
 import { useNavigate } from "react-router";
@@ -73,6 +73,13 @@ export const DoctorList: React.FC = () => {
           dataIndex="actions"
           render={(_, record: BaseRecord) => {
             const analyticsItems: MenuProps['items'] = [
+              {
+                key: 'schedule',
+                label: 'Manage Schedule',
+                icon: <CalendarOutlined />,
+                onClick: () => navigate(`/doctors/schedule/${record.id}`),
+              },
+              { type: 'divider' },
               {
                 key: 'performance',
                 label: 'Performance Metrics',

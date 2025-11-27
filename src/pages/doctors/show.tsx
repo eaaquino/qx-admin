@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { DateField, Show, TextField } from "@refinedev/antd";
 import { useShow } from "@refinedev/core";
-import { Typography, Descriptions, Tag, Space, Avatar } from "antd";
+import { Typography, Descriptions, Tag, Space, Avatar, Button } from "antd";
+import { CalendarOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router";
 import { supabaseClient } from "../../utility";
 
 const { Title } = Typography;
 
 export const DoctorShow: React.FC = () => {
+  const navigate = useNavigate();
   const { query, result } = useShow({
     resource: "doctors",
     meta: {
@@ -38,20 +41,29 @@ export const DoctorShow: React.FC = () => {
 
   return (
     <Show isLoading={isLoading}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-        <Avatar
-          size={80}
-          src={record?.profile_photo_url}
-          style={{ backgroundColor: '#004777', fontSize: '32px', fontWeight: 'bold' }}
-        >
-          {record?.first_name?.charAt(0)}{record?.last_name?.charAt(0)}
-        </Avatar>
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
-            Dr. {record?.first_name} {record?.last_name}
-          </Title>
-          <Tag color="blue" style={{ marginTop: '8px' }}>{record?.specialization}</Tag>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Avatar
+            size={80}
+            src={record?.profile_photo_url}
+            style={{ backgroundColor: '#004777', fontSize: '32px', fontWeight: 'bold' }}
+          >
+            {record?.first_name?.charAt(0)}{record?.last_name?.charAt(0)}
+          </Avatar>
+          <div>
+            <Title level={3} style={{ margin: 0 }}>
+              Dr. {record?.first_name} {record?.last_name}
+            </Title>
+            <Tag color="blue" style={{ marginTop: '8px' }}>{record?.specialization}</Tag>
+          </div>
         </div>
+        <Button
+          type="primary"
+          icon={<CalendarOutlined />}
+          onClick={() => navigate(`/doctors/schedule/${record?.id}`)}
+        >
+          Manage Schedule
+        </Button>
       </div>
       <Title level={5}>Doctor Details</Title>
       <Descriptions bordered column={1}>
