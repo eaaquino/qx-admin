@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { List } from "@refinedev/antd";
 import { Space, Table, Tag, Button, Card, Typography, Switch } from "antd";
 import { EyeOutlined, SyncOutlined } from "@ant-design/icons";
@@ -10,10 +10,10 @@ interface DoctorQueueSummary {
   doctor_id: string;
   doctor_name: string;
   clinic_name?: string;
-  total_queue: number;
   waiting: number;
   in_progress: number;
   completed_today: number;
+  cancelled_today: number;
   latest_checkin?: string;
   session_state: string | null;
   session_start_time?: string | null;
@@ -39,7 +39,7 @@ export const QueueList: React.FC = () => {
   const [showAllDoctors, setShowAllDoctors] = useState(false);
   const REFRESH_INTERVAL = 30000; // 30 seconds
 
-  const fetchQueueSummaries = async () => {
+  const fetchQueueSummaries = useCallback(async () => {
     setLoading(true);
     try {
       // Calculate "today" in Philippine timezone (GMT+8)
@@ -86,13 +86,36 @@ export const QueueList: React.FC = () => {
         ? doctors
         : doctors?.filter((doctor: any) => isDoctorClockedIn(doctor.is_in_timestamp));
 
-      // Step 2: Fetch all queue entries for today
-      const { data: queueEntries, error: queueError } = await supabaseClient
+      // Step 2: Fetch queue entries for today - split into two queries to avoid row limits
+      // First, get active entries (waiting, called, in_progress)
+      const { data: activeEntries, error: activeError } = await supabaseClient
         .from("queue_entries")
         .select("id, doctor_id, status, check_in_time")
-        .gte("check_in_time", today.toISOString());
+        .gte("check_in_time", today.toISOString())
+        .in("status", ["waiting", "called", "in_progress"]);
 
-      if (queueError) throw queueError;
+      if (activeError) throw activeError;
+
+      // Second, get completed entries for today
+      const { data: completedEntries, error: completedError } = await supabaseClient
+        .from("queue_entries")
+        .select("id, doctor_id, status, check_in_time")
+        .gte("check_in_time", today.toISOString())
+        .eq("status", "completed");
+
+      if (completedError) throw completedError;
+
+      // Third, get cancelled entries for today
+      const { data: cancelledEntries, error: cancelledError } = await supabaseClient
+        .from("queue_entries")
+        .select("id, doctor_id, status, check_in_time")
+        .gte("check_in_time", today.toISOString())
+        .eq("status", "cancelled");
+
+      if (cancelledError) throw cancelledError;
+
+      // Combine all sets
+      const queueEntries = [...(activeEntries || []), ...(completedEntries || []), ...(cancelledEntries || [])];
 
       // Step 3: Build summary map from doctors (not queue entries)
       const summaryMap = new Map<string, DoctorQueueSummary>();
@@ -102,10 +125,10 @@ export const QueueList: React.FC = () => {
           doctor_id: doctor.id,
           doctor_name: `Dr. ${doctor.first_name} ${doctor.last_name}`,
           clinic_name: doctor.clinics?.name,
-          total_queue: 0,
           waiting: 0,
           in_progress: 0,
           completed_today: 0,
+          cancelled_today: 0,
           session_state: doctor.session_state,
           session_start_time: doctor.session_start_time,
           total_active_duration: doctor.total_active_duration,
@@ -121,12 +144,12 @@ export const QueueList: React.FC = () => {
           // Count by status
           if (entry.status === "waiting") {
             summary.waiting++;
-            summary.total_queue++;
           } else if (entry.status === "in_progress" || entry.status === "called") {
             summary.in_progress++;
-            summary.total_queue++;
           } else if (entry.status === "completed") {
             summary.completed_today++;
+          } else if (entry.status === "cancelled") {
+            summary.cancelled_today++;
           }
 
           // Update latest check-in
@@ -136,7 +159,7 @@ export const QueueList: React.FC = () => {
         }
       });
 
-      // Step 5: Sort - clocked in first, then by queue count
+      // Step 5: Sort - clocked in first, then by active patients (in_progress + waiting)
       const sortedDoctors = Array.from(summaryMap.values()).sort((a, b) => {
         // Primary sort: clocked in doctors first
         const aClockedIn = isDoctorClockedIn(a.is_in_timestamp);
@@ -145,8 +168,10 @@ export const QueueList: React.FC = () => {
         if (aClockedIn && !bClockedIn) return -1;
         if (!aClockedIn && bClockedIn) return 1;
 
-        // Secondary sort: by total queue count
-        return b.total_queue - a.total_queue;
+        // Secondary sort: by active patients count
+        const aActive = a.in_progress + a.waiting;
+        const bActive = b.in_progress + b.waiting;
+        return bActive - aActive;
       });
 
       setQueueSummaries(sortedDoctors);
@@ -156,7 +181,7 @@ export const QueueList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showAllDoctors]);
 
   // Initial fetch and re-fetch when filter changes
   useEffect(() => {
@@ -170,7 +195,7 @@ export const QueueList: React.FC = () => {
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchQueueSummaries]);
 
   // Countdown timer
   useEffect(() => {
@@ -245,12 +270,10 @@ export const QueueList: React.FC = () => {
             }}
           />
           <Table.Column
-            dataIndex="total_queue"
-            title="Active Queue"
+            dataIndex="in_progress"
+            title="In Progress"
             render={(value: number) => (
-              <Tag color="blue" style={{ fontSize: "14px", padding: "4px 8px" }}>
-                {value} patient{value !== 1 ? "s" : ""}
-              </Tag>
+              <Tag color="cyan">{value}</Tag>
             )}
           />
           <Table.Column
@@ -261,17 +284,17 @@ export const QueueList: React.FC = () => {
             )}
           />
           <Table.Column
-            dataIndex="in_progress"
-            title="In Progress"
+            dataIndex="completed_today"
+            title="Completed"
             render={(value: number) => (
-              <Tag color="cyan">{value}</Tag>
+              <Tag color="green">{value}</Tag>
             )}
           />
           <Table.Column
-            dataIndex="completed_today"
-            title="Completed Today"
+            dataIndex="cancelled_today"
+            title="Cancelled"
             render={(value: number) => (
-              <Tag color="green">{value}</Tag>
+              <Tag color="red">{value}</Tag>
             )}
           />
           <Table.Column
