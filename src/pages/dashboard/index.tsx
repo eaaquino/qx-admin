@@ -7,8 +7,8 @@ import {
   CloseCircleOutlined,
   StopOutlined,
 } from "@ant-design/icons";
-import { analyticsService, getDateRange, type AnalyticsData } from "../../services/analyticsService";
-import { DateRangeSelector, PeakHoursChart, DemographicsCharts } from "../../components/analytics";
+import { analyticsService, getDateRange, isMultiDayPreset, type AnalyticsData } from "../../services/analyticsService";
+import { DateRangeSelector, PeakHoursChart, DemographicsCharts, TimeSeriesChart, MultiTimeSeriesChart } from "../../components/analytics";
 
 export const Dashboard: React.FC = () => {
   const [dateRange, setDateRange] = useState<string>("7days");
@@ -39,6 +39,9 @@ export const Dashboard: React.FC = () => {
     fetchAnalytics();
   }, [dateRange]);
 
+  // Check if we should show time series charts
+  const showTimeSeries = isMultiDayPreset(dateRange) && analyticsData.time_series;
+
   // Format time values
   const formatTime = (minutes: number | undefined): string => {
     if (!minutes) return "0";
@@ -62,70 +65,179 @@ export const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Key Metrics */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic
-              title="Avg Consultation Time"
-              value={formatTime(analyticsData.avg_consultation_time)}
-              suffix={analyticsData.avg_consultation_time && analyticsData.avg_consultation_time >= 60 ? "" : "min"}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: "#1890ff" }}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic
-              title="Avg Waiting Time"
-              value={formatTime(analyticsData.avg_waiting_time)}
-              suffix={analyticsData.avg_waiting_time && analyticsData.avg_waiting_time >= 60 ? "" : "min"}
-              prefix={<TeamOutlined />}
-              valueStyle={{ color: "#faad14" }}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic
-              title="Total Patients"
-              value={analyticsData.total_patients || 0}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: "#52c41a" }}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* Key Metrics - Show as line charts for multi-day ranges, cards for single day */}
+      {showTimeSeries ? (
+        <>
+          {/* Time Series Charts */}
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={12}>
+              <TimeSeriesChart
+                title="Total Patients"
+                data={analyticsData.time_series?.total_patients}
+                loading={loading}
+                color="#52c41a"
+                valueLabel="Patients"
+              />
+            </Col>
+            <Col xs={24} lg={12}>
+              <MultiTimeSeriesChart
+                title="Cancellations & No-Shows"
+                series={[
+                  {
+                    data: analyticsData.time_series?.cancelled_count || [],
+                    name: "Cancellations",
+                    color: "#ff7875",
+                  },
+                  {
+                    data: analyticsData.time_series?.no_show_count || [],
+                    name: "No-Shows",
+                    color: "#cf1322",
+                  },
+                ]}
+                loading={loading}
+              />
+            </Col>
+          </Row>
+          <Row gutter={[16, 16]} style={{ marginTop: "16px" }}>
+            <Col xs={24} lg={12}>
+              <TimeSeriesChart
+                title="Avg Consultation Time"
+                data={analyticsData.time_series?.avg_consultation_time}
+                loading={loading}
+                color="#1890ff"
+                valueLabel="Minutes"
+                valueSuffix=" min"
+              />
+            </Col>
+            <Col xs={24} lg={12}>
+              <TimeSeriesChart
+                title="Avg Waiting Time"
+                data={analyticsData.time_series?.avg_waiting_time}
+                loading={loading}
+                color="#faad14"
+                valueLabel="Minutes"
+                valueSuffix=" min"
+              />
+            </Col>
+          </Row>
 
-      {/* Second Row - Cancellations and No-Shows */}
-      <Row gutter={[16, 16]} style={{ marginTop: "16px" }}>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="Cancellations"
-              value={analyticsData.cancelled_count || 0}
-              prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: "#ff7875" }}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="No-Shows"
-              value={analyticsData.no_show_count || 0}
-              prefix={<StopOutlined />}
-              valueStyle={{ color: "#cf1322" }}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-      </Row>
+          {/* Summary totals for the period */}
+          <Row gutter={[16, 16]} style={{ marginTop: "16px" }}>
+            <Col xs={12} sm={6}>
+              <Card size="small">
+                <Statistic
+                  title="Total Patients"
+                  value={analyticsData.total_patients || 0}
+                  prefix={<UserOutlined />}
+                  valueStyle={{ color: "#52c41a", fontSize: "18px" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card size="small">
+                <Statistic
+                  title="Avg Consultation"
+                  value={formatTime(analyticsData.avg_consultation_time)}
+                  suffix={analyticsData.avg_consultation_time && analyticsData.avg_consultation_time >= 60 ? "" : "min"}
+                  prefix={<ClockCircleOutlined />}
+                  valueStyle={{ color: "#1890ff", fontSize: "18px" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card size="small">
+                <Statistic
+                  title="Cancellations"
+                  value={analyticsData.cancelled_count || 0}
+                  prefix={<CloseCircleOutlined />}
+                  valueStyle={{ color: "#ff7875", fontSize: "18px" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card size="small">
+                <Statistic
+                  title="No-Shows"
+                  value={analyticsData.no_show_count || 0}
+                  prefix={<StopOutlined />}
+                  valueStyle={{ color: "#cf1322", fontSize: "18px" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+          </Row>
+        </>
+      ) : (
+        <>
+          {/* Single Day View - Show as statistic cards */}
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} lg={8}>
+              <Card>
+                <Statistic
+                  title="Avg Consultation Time"
+                  value={formatTime(analyticsData.avg_consultation_time)}
+                  suffix={analyticsData.avg_consultation_time && analyticsData.avg_consultation_time >= 60 ? "" : "min"}
+                  prefix={<ClockCircleOutlined />}
+                  valueStyle={{ color: "#1890ff" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card>
+                <Statistic
+                  title="Avg Waiting Time"
+                  value={formatTime(analyticsData.avg_waiting_time)}
+                  suffix={analyticsData.avg_waiting_time && analyticsData.avg_waiting_time >= 60 ? "" : "min"}
+                  prefix={<TeamOutlined />}
+                  valueStyle={{ color: "#faad14" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card>
+                <Statistic
+                  title="Total Patients"
+                  value={analyticsData.total_patients || 0}
+                  prefix={<UserOutlined />}
+                  valueStyle={{ color: "#52c41a" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Second Row - Cancellations and No-Shows */}
+          <Row gutter={[16, 16]} style={{ marginTop: "16px" }}>
+            <Col xs={24} sm={12}>
+              <Card>
+                <Statistic
+                  title="Cancellations"
+                  value={analyticsData.cancelled_count || 0}
+                  prefix={<CloseCircleOutlined />}
+                  valueStyle={{ color: "#ff7875" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Card>
+                <Statistic
+                  title="No-Shows"
+                  value={analyticsData.no_show_count || 0}
+                  prefix={<StopOutlined />}
+                  valueStyle={{ color: "#cf1322" }}
+                  loading={loading}
+                />
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
 
       {/* Demographics */}
       <Row style={{ marginTop: "24px" }}>

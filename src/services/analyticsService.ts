@@ -8,6 +8,19 @@ export interface AnalyticsFilters {
   metrics?: string[];
 }
 
+export interface TimeSeriesDataPoint {
+  date: string;
+  value: number;
+}
+
+export interface TimeSeriesData {
+  total_patients?: TimeSeriesDataPoint[];
+  cancelled_count?: TimeSeriesDataPoint[];
+  no_show_count?: TimeSeriesDataPoint[];
+  avg_consultation_time?: TimeSeriesDataPoint[];
+  avg_waiting_time?: TimeSeriesDataPoint[];
+}
+
 export interface AnalyticsData {
   avg_consultation_time?: number;
   avg_waiting_time?: number;
@@ -23,6 +36,8 @@ export interface AnalyticsData {
     reason?: Array<{ reason: string; patient_count: number }>;
   };
   peak_hours?: Array<{ hour: number; session_count: number }>;
+  // Time series data (returned when date range > 1 day)
+  time_series?: TimeSeriesData;
 }
 
 export interface AnalyticsResponse {
@@ -53,6 +68,13 @@ export interface CampaignAnalyticsResponse {
     start_date?: string | null;
     end_date?: string | null;
   };
+}
+
+/**
+ * Check if a date range preset spans more than 1 day
+ */
+export function isMultiDayPreset(preset: string): boolean {
+  return !['today', 'yesterday'].includes(preset);
 }
 
 /**
