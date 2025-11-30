@@ -10,7 +10,6 @@ const { useToken } = theme;
 
 interface QueueEntry {
   id: string;
-  queue_position: number;
   patient_id: string;
   status: string;
   reason_for_visit: string;
@@ -128,7 +127,6 @@ export const DoctorQueueMonitor: React.FC = () => {
         .from("queue_entries")
         .select(`
           id,
-          queue_position,
           patient_id,
           status,
           reason_for_visit,
@@ -140,7 +138,7 @@ export const DoctorQueueMonitor: React.FC = () => {
         `)
         .eq("doctor_id", doctorId)
         .gte("check_in_time", today.toISOString())
-        .order("queue_position", { ascending: true });
+        .order("check_in_time", { ascending: true });
 
       if (error) throw error;
 
@@ -216,6 +214,7 @@ export const DoctorQueueMonitor: React.FC = () => {
   };
 
   // Calculate dynamic wait time for a waiting patient
+  // Position is determined by check_in_time ordering (entries are already sorted)
   const calculateWaitTime = (entry: QueueEntry): number | null => {
     if (entry.status !== 'waiting') return null;
 
@@ -234,9 +233,11 @@ export const DoctorQueueMonitor: React.FC = () => {
       totalWait += remainingTime;
     }
 
-    // Add time for all waiting/called patients ahead of this entry
+    // Add time for all waiting/called patients ahead of this entry (by check_in_time)
+    const entryCheckInTime = new Date(entry.check_in_time).getTime();
     for (const e of queueEntries) {
-      if (e.queue_position >= entry.queue_position) break;
+      // Skip entries at or after this entry's check_in_time
+      if (new Date(e.check_in_time).getTime() >= entryCheckInTime) break;
       if (e.status === 'in_progress') continue; // Already counted above
       if (e.status === 'waiting' || e.status === 'called') {
         totalWait += getExpectedDuration(e.reason_for_visit);
@@ -262,7 +263,8 @@ export const DoctorQueueMonitor: React.FC = () => {
     return Math.round((calledTime - checkInTime) / 1000 / 60);
   };
 
-  const QueueCard: React.FC<{ entry: QueueEntry; isCompleted?: boolean }> = ({ entry, isCompleted }) => {
+  // QueueCard now accepts position prop derived from array index
+  const QueueCard: React.FC<{ entry: QueueEntry; isCompleted?: boolean; position?: number }> = ({ entry, isCompleted, position }) => {
     const dynamicWaitTime = calculateWaitTime(entry);
     const reasonBadge = getReasonBadge(entry.reason_for_visit);
     const sessionDuration = isCompleted ? getSessionDuration(entry) : null;
@@ -278,9 +280,9 @@ export const DoctorQueueMonitor: React.FC = () => {
           {/* Row 1: Position + Name + Reason Badge */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Space>
-              {!isCompleted && (
+              {!isCompleted && position !== undefined && (
                 <Tag color="blue" style={{ fontSize: "16px", fontWeight: "bold", padding: "4px 12px", margin: 0 }}>
-                  #{entry.queue_position}
+                  #{position}
                 </Tag>
               )}
               <Text strong style={{ fontSize: "15px" }}>{entry.patients?.name || 'Unknown'}</Text>
@@ -429,7 +431,7 @@ export const DoctorQueueMonitor: React.FC = () => {
               {ongoing.length === 0 ? (
                 <Text type="secondary">No ongoing patients</Text>
               ) : (
-                ongoing.map((entry) => <QueueCard key={entry.id} entry={entry} />)
+                ongoing.map((entry, index) => <QueueCard key={entry.id} entry={entry} position={index + 1} />)
               )}
             </Card>
           </Col>
@@ -448,7 +450,7 @@ export const DoctorQueueMonitor: React.FC = () => {
               {waiting.length === 0 ? (
                 <Text type="secondary">No patients waiting</Text>
               ) : (
-                waiting.map((entry) => <QueueCard key={entry.id} entry={entry} />)
+                waiting.map((entry, index) => <QueueCard key={entry.id} entry={entry} position={ongoing.length + index + 1} />)
               )}
             </Card>
           </Col>

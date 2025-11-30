@@ -1,6 +1,6 @@
 import React from "react";
 import { Edit, useForm, useSelect } from "@refinedev/antd";
-import { Form, Input, InputNumber, Select } from "antd";
+import { Form, InputNumber, Select } from "antd";
 
 export const QueueEdit: React.FC = () => {
   const { formProps, saveButtonProps, query } = useForm();
@@ -26,17 +26,6 @@ export const QueueEdit: React.FC = () => {
   return (
     <Edit saveButtonProps={saveButtonProps}>
       <Form {...formProps} layout="vertical">
-        <Form.Item
-          label="Queue Position"
-          name={["queue_position"]}
-          rules={[
-            {
-              required: true,
-            },
-          ]}
-        >
-          <InputNumber min={1} style={{ width: "100%" }} />
-        </Form.Item>
         <Form.Item
           label="Patient"
           name={["patient_id"]}

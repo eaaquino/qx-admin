@@ -27,9 +27,6 @@ export const QueueShow: React.FC = () => {
     <Show isLoading={isLoading}>
       <Title level={5}>Queue Entry Details</Title>
       <Descriptions bordered column={1}>
-        <Descriptions.Item label="Position">
-          <TextField value={record?.queue_position} />
-        </Descriptions.Item>
         <Descriptions.Item label="Patient">
           <TextField value={record?.patients?.name || "N/A"} />
         </Descriptions.Item>

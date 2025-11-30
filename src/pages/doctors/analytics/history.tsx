@@ -19,7 +19,6 @@ interface Patient {
 
 interface QueueEntry {
   id: string;
-  queue_position: number;
   status: string;
   reason_for_visit: string;
   check_in_time: string;
@@ -59,7 +58,6 @@ export const DoctorAnalyticsHistory: React.FC = () => {
         .from('queue_entries')
         .select(`
           id,
-          queue_position,
           status,
           reason_for_visit,
           check_in_time,
