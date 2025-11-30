@@ -96,6 +96,11 @@ export const DoctorList: React.FC = () => {
               <Space>
                 <EditButton hideText size="small" recordItemId={record.id} />
                 <ShowButton hideText size="small" recordItemId={record.id} />
+                <Button
+                  size="small"
+                  icon={<CalendarOutlined />}
+                  onClick={() => navigate(`/doctors/schedule/${record.id}`)}
+                />
                 <Dropdown menu={{ items: analyticsItems }} trigger={['click']}>
                   <Button size="small" icon={<BarChartOutlined />}>
                     <DownOutlined />
