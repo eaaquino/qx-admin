@@ -1,6 +1,22 @@
 import { AuthProvider } from "@refinedev/core";
 import { supabaseClient } from "./utility";
 
+// Helper function to check if user is an active admin
+async function checkAdminStatus(userId: string): Promise<{ isAdmin: boolean; adminData: any | null }> {
+  const { data, error } = await supabaseClient
+    .from("admins")
+    .select("*")
+    .eq("auth_user_id", userId)
+    .eq("is_active", true)
+    .single();
+
+  if (error || !data) {
+    return { isAdmin: false, adminData: null };
+  }
+
+  return { isAdmin: true, adminData: data };
+}
+
 const authProvider: AuthProvider = {
   login: async ({ email, password, providerName }) => {
     // sign in with oauth
@@ -39,6 +55,21 @@ const authProvider: AuthProvider = {
       }
 
       if (data?.user) {
+        // Check if user is an active admin
+        const { isAdmin } = await checkAdminStatus(data.user.id);
+
+        if (!isAdmin) {
+          // Sign out the non-admin user
+          await supabaseClient.auth.signOut();
+          return {
+            success: false,
+            error: {
+              message: "Access denied",
+              name: "You do not have admin access to this application",
+            },
+          };
+        }
+
         return {
           success: true,
           redirectTo: "/",
@@ -198,6 +229,21 @@ const authProvider: AuthProvider = {
           redirectTo: "/login",
         };
       }
+
+      // Verify user is still an active admin
+      const { isAdmin } = await checkAdminStatus(session.user.id);
+      if (!isAdmin) {
+        await supabaseClient.auth.signOut();
+        return {
+          authenticated: false,
+          error: {
+            message: "Access denied",
+            name: "You do not have admin access to this application",
+          },
+          logout: true,
+          redirectTo: "/login",
+        };
+      }
     } catch (error: any) {
       return {
         authenticated: false,
@@ -227,6 +273,18 @@ const authProvider: AuthProvider = {
     const { data } = await supabaseClient.auth.getUser();
 
     if (data?.user) {
+      // Get admin profile data
+      const { adminData } = await checkAdminStatus(data.user.id);
+
+      if (adminData) {
+        return {
+          ...data.user,
+          name: `${adminData.first_name} ${adminData.last_name}`.trim() || data.user.email,
+          avatar: adminData.profile_photo_url,
+          role: adminData.role,
+        };
+      }
+
       return {
         ...data.user,
         name: data.user.email,
