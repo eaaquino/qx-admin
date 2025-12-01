@@ -48,7 +48,7 @@ export const Login: React.FC = () => {
                         <div className="imageContainer" style={{
                             textAlign: "center"
                         }}>
-                            <img src="./public/logo.png" alt="Qx" />
+                            <img src="/logo.png" alt="Qx" />
                         </div>
                         <Card title={CardTitle} headStyle={{ borderBottom: 0 }}>
                             <Form<ILoginForm>
