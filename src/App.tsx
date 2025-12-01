@@ -56,6 +56,17 @@ import {
   CampaignAnalyticsList,
   CampaignAnalyticsShow,
 } from "./pages/campaign-analytics";
+import {
+  SpecializationList,
+  SpecializationCreate,
+  SpecializationEdit,
+  SpecializationShow,
+} from "./pages/specializations";
+import {
+  SubSpecializationList,
+  SubSpecializationCreate,
+  SubSpecializationEdit,
+} from "./pages/sub-specializations";
 import { Login } from "./pages/login"
 
 import { supabaseClient } from "./utility";
@@ -159,6 +170,32 @@ function App() {
                       label: "Admin Users",
                     },
                   },
+                  {
+                    name: "Specialization Management",
+                  },
+                  {
+                    name: "specializations",
+                    list: "/specializations",
+                    create: "/specializations/create",
+                    edit: "/specializations/edit/:id",
+                    show: "/specializations/show/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Specializations",
+                      parent: "Specialization Management",
+                    },
+                  },
+                  {
+                    name: "sub_specializations",
+                    list: "/sub-specializations",
+                    create: "/sub-specializations/create",
+                    edit: "/sub-specializations/edit/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Sub-Specializations",
+                      parent: "Specialization Management",
+                    },
+                  },
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -246,6 +283,17 @@ function App() {
                     <Route path="/campaign-analytics">
                       <Route index element={<CampaignAnalyticsList />} />
                       <Route path="show/:id" element={<CampaignAnalyticsShow />} />
+                    </Route>
+                    <Route path="/specializations">
+                      <Route index element={<SpecializationList />} />
+                      <Route path="create" element={<SpecializationCreate />} />
+                      <Route path="edit/:id" element={<SpecializationEdit />} />
+                      <Route path="show/:id" element={<SpecializationShow />} />
+                    </Route>
+                    <Route path="/sub-specializations">
+                      <Route index element={<SubSpecializationList />} />
+                      <Route path="create" element={<SubSpecializationCreate />} />
+                      <Route path="edit/:id" element={<SubSpecializationEdit />} />
                     </Route>
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>

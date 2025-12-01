@@ -317,7 +317,7 @@ export const DoctorAnalyticsPerformance: React.FC = () => {
         <Card title="Rating Distribution" bordered={false} style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {[5, 4, 3, 2, 1].map((starValue) => {
-              const ratingData = analyticsData.rating_distribution.find((r: any) => r.rating === starValue);
+              const ratingData = analyticsData.rating_distribution?.find((r: any) => r.rating === starValue);
               const count = ratingData?.count || 0;
               const total = analyticsData.rating_count || 0;
               const percentage = total > 0 ? (count / total) * 100 : 0;
