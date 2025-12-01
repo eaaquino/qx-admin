@@ -16,6 +16,14 @@ export const DoctorList: React.FC = () => {
   const navigate = useNavigate();
   const { tableProps } = useTable({
     syncWithLocation: true,
+    sorters: {
+      initial: [
+        {
+          field: "created_at",
+          order: "desc",
+        },
+      ],
+    },
   });
 
   return (

@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { Edit, useSelect } from "@refinedev/antd";
 import { useNavigation } from "@refinedev/core";
-import { Form, Input, Select, message, Upload, Image, Avatar, Alert } from "antd";
+import { Form, Input, Select, message, Upload, Avatar, Alert, DatePicker, Switch, Divider } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import type { UploadFile, UploadProps } from "antd";
 import { useParams } from "react-router";
 import { supabaseClient } from "../../utility";
+import { ClinicAutocomplete } from "../../components/ClinicAutocomplete";
+import dayjs from "dayjs";
+
+interface Clinic {
+  id: string;
+  name: string;
+  address?: string;
+}
+
+const CIVIL_STATUS_OPTIONS = ["Single", "Married", "Widowed", "Separated", "Divorced"];
 
 export const DoctorEdit: React.FC = () => {
   const [form] = Form.useForm();
@@ -16,14 +26,65 @@ export const DoctorEdit: React.FC = () => {
   const [newPhotoUrl, setNewPhotoUrl] = useState<string>("");
   const [photoRemoved, setPhotoRemoved] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [specializations, setSpecializations] = useState<any[]>([]);
+  const [subSpecializations, setSubSpecializations] = useState<any[]>([]);
+  const [hasSecretary, setHasSecretary] = useState(false);
+  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
+  const [clinicName, setClinicName] = useState("");
   const { list } = useNavigation();
   const { id } = useParams();
 
-  const { selectProps: clinicSelectProps } = useSelect({
-    resource: "clinics",
-    optionLabel: "name",
-    optionValue: "id",
-  });
+  // Parse clinic address into parts
+  const parseClinicAddress = (addressStr: string | undefined) => {
+    if (!addressStr) {
+      return { address: "", barangay: "", city: "", province: "", zip: "" };
+    }
+    const parts = addressStr.split(",").map((p) => p.trim());
+    if (parts.length >= 4) {
+      const lastPart = parts[parts.length - 1] || "";
+      const zipMatch = lastPart.match(/\s+(\d{4,})$/);
+      const zip = zipMatch ? zipMatch[1] : "";
+      const province = zipMatch ? lastPart.replace(/\s+\d{4,}$/, "").trim() : lastPart;
+      return {
+        address: parts[0] || "",
+        barangay: parts[1] || "",
+        city: parts[2] || "",
+        province: province,
+        zip: zip,
+      };
+    } else if (parts.length === 3) {
+      return { address: parts[0] || "", barangay: "", city: parts[1] || "", province: parts[2] || "", zip: "" };
+    } else if (parts.length === 2) {
+      return { address: parts[0] || "", barangay: "", city: parts[1] || "", province: "", zip: "" };
+    }
+    return { address: addressStr, barangay: "", city: "", province: "", zip: "" };
+  };
+
+  // Handle clinic selection from autocomplete
+  const handleClinicSelect = (clinic: Clinic | null) => {
+    setSelectedClinic(clinic);
+    if (clinic) {
+      const addressParts = parseClinicAddress(clinic.address);
+      form.setFieldsValue({
+        clinic_address: addressParts.address,
+        clinic_barangay: addressParts.barangay,
+        clinic_city: addressParts.city,
+        clinic_province: addressParts.province,
+        clinic_zip: addressParts.zip,
+      });
+    }
+  };
+
+  // Handle address field changes - disconnect from linked clinic when user edits any address field
+  const handleAddressFieldChange = (fieldName: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Update the form field
+    form.setFieldValue(fieldName, e.target.value);
+
+    // If editing address fields while a clinic is selected, disconnect from the clinic
+    if (selectedClinic) {
+      setSelectedClinic(null);
+    }
+  };
 
   const { selectProps: zoneSelectProps } = useSelect({
     resource: "campaign_zones",
@@ -37,6 +98,38 @@ export const DoctorEdit: React.FC = () => {
       },
     ],
   });
+
+  // Load specializations
+  useEffect(() => {
+    const loadSpecializations = async () => {
+      const { data, error } = await supabaseClient.rpc("get_specializations_with_subs");
+      if (!error && data) {
+        const uniqueSpecs: any[] = [];
+        const seen = new Set();
+        data.forEach((row: any) => {
+          if (!seen.has(row.specialization_id)) {
+            seen.add(row.specialization_id);
+            uniqueSpecs.push({
+              id: row.specialization_id,
+              name: row.specialization_name,
+            });
+          }
+        });
+        setSpecializations(uniqueSpecs);
+        setSubSpecializations(data.filter((row: any) => row.sub_specialization_id));
+      }
+    };
+    loadSpecializations();
+  }, []);
+
+  // Get filtered sub-specializations based on selected specialization
+  const getFilteredSubSpecs = () => {
+    const selectedSpec = form.getFieldValue("specialization");
+    if (!selectedSpec) return [];
+    const spec = specializations.find((s) => s.name === selectedSpec);
+    if (!spec) return [];
+    return subSpecializations.filter((s: any) => s.specialization_id === spec.id);
+  };
 
   // Load doctor data and assigned zones
   useEffect(() => {
@@ -64,9 +157,35 @@ export const DoctorEdit: React.FC = () => {
         // Store current photo URL
         setCurrentPhotoUrl(doctor.profile_photo_url || "");
 
-        // Set form values
+        // Set secretary state
+        setHasSecretary(doctor.has_secretary || false);
+
+        // Fetch and set clinic data
+        if (doctor.clinic_id) {
+          const { data: clinic } = await supabaseClient
+            .from("clinics")
+            .select("id, name, address")
+            .eq("id", doctor.clinic_id)
+            .single();
+
+          if (clinic) {
+            setSelectedClinic(clinic);
+            setClinicName(clinic.name);
+            const addressParts = parseClinicAddress(clinic.address);
+            form.setFieldsValue({
+              clinic_address: addressParts.address,
+              clinic_barangay: addressParts.barangay,
+              clinic_city: addressParts.city,
+              clinic_province: addressParts.province,
+              clinic_zip: addressParts.zip,
+            });
+          }
+        }
+
+        // Set form values with date conversion
         form.setFieldsValue({
           ...doctor,
+          date_of_birth: doctor.date_of_birth ? dayjs(doctor.date_of_birth) : null,
           campaign_zones: zoneAssignments.map((z) => z.zone_id),
         });
       } catch (error: any) {
@@ -144,6 +263,54 @@ export const DoctorEdit: React.FC = () => {
         photoToUse = newPhotoUrl;
       }
 
+      // Build address from form fields
+      const addressParts = [
+        values.clinic_address,
+        values.clinic_barangay,
+        values.clinic_city,
+        `${values.clinic_province || ""} ${values.clinic_zip || ""}`.trim(),
+      ].filter(Boolean);
+      const fullAddress = addressParts.join(", ");
+
+      // Update existing clinic or create new one
+      let clinicId = selectedClinic?.id || null;
+
+      if (clinicId) {
+        // Update existing clinic
+        const { error: clinicError } = await supabaseClient
+          .from("clinics")
+          .update({
+            name: clinicName,
+            address: fullAddress,
+          })
+          .eq("id", clinicId);
+
+        if (clinicError) {
+          throw new Error(`Failed to update clinic: ${clinicError.message}`);
+        }
+      } else if (clinicName) {
+        // Create new clinic
+        const { data: newClinic, error: clinicError } = await supabaseClient
+          .from("clinics")
+          .insert({
+            name: clinicName,
+            address: fullAddress,
+            phone: values.phone || "",
+            email: `clinic-${Date.now()}@default.com`,
+          })
+          .select()
+          .single();
+
+        if (clinicError) {
+          throw new Error(`Failed to create clinic: ${clinicError.message}`);
+        }
+        clinicId = newClinic.id;
+      }
+
+      if (!clinicId) {
+        throw new Error("Please enter a clinic name");
+      }
+
       // Update doctor
       const { error: doctorError } = await supabaseClient
         .from("doctors")
@@ -154,9 +321,19 @@ export const DoctorEdit: React.FC = () => {
           phone: values.phone,
           license_number: values.license_number,
           specialization: values.specialization,
-          clinic_id: values.clinic_id,
+          sub_specialization: values.sub_specialization || null,
+          society: values.society || null,
+          date_of_birth: values.date_of_birth ? values.date_of_birth.format("YYYY-MM-DD") : null,
+          civil_status: values.civil_status || null,
+          clinic_id: clinicId,
+          room_number: values.room_number || null,
+          floor_number: values.floor_number || null,
+          is_shared_clinic: values.is_shared_clinic || false,
+          has_secretary: values.has_secretary || false,
+          secretary_name: values.has_secretary ? values.secretary_name : null,
+          secretary_contact: values.has_secretary ? values.secretary_contact : null,
+          secretary_email: values.has_secretary ? values.secretary_email : null,
           intake_slug: values.intake_slug,
-          qr_code_url: values.qr_code_url,
           profile_photo_url: photoToUse,
         })
         .eq("id", id);
@@ -329,57 +506,186 @@ export const DoctorEdit: React.FC = () => {
           <Input />
         </Form.Item>
         <Form.Item
-          label="License Number"
+          label="License Number (PRC)"
           name={["license_number"]}
-          rules={[
-            {
-              required: true,
-            },
-          ]}
+          rules={[{ required: true }]}
         >
           <Input />
         </Form.Item>
+
+        <Divider>Personal Information</Divider>
+
+        <Form.Item label="Date of Birth" name={["date_of_birth"]}>
+          <DatePicker style={{ width: "100%" }} />
+        </Form.Item>
+        <Form.Item label="Civil Status" name={["civil_status"]}>
+          <Select placeholder="Select civil status" allowClear>
+            {CIVIL_STATUS_OPTIONS.map((status) => (
+              <Select.Option key={status} value={status}>
+                {status}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Divider>Professional Information</Divider>
+
         <Form.Item
           label="Specialization"
           name={["specialization"]}
-          rules={[
-            {
-              required: true,
-            },
-          ]}
+          rules={[{ required: true }]}
         >
-          <Select>
-            <Select.Option value="Pediatrics">Pediatrics</Select.Option>
-            <Select.Option value="Cardiology">Cardiology</Select.Option>
-            <Select.Option value="Dermatology">Dermatology</Select.Option>
-            <Select.Option value="General">General</Select.Option>
+          <Select
+            placeholder="Select specialization"
+            onChange={() => form.setFieldValue("sub_specialization", null)}
+          >
+            {specializations.map((spec) => (
+              <Select.Option key={spec.id} value={spec.name}>
+                {spec.name}
+              </Select.Option>
+            ))}
           </Select>
         </Form.Item>
         <Form.Item
-          label="Clinic"
-          name={["clinic_id"]}
-          rules={[
-            {
-              required: true,
-            },
-          ]}
+          label="Sub-Specialization"
+          name={["sub_specialization"]}
+          dependencies={["specialization"]}
         >
-          <Select {...clinicSelectProps} />
+          <Select placeholder="Select sub-specialization" allowClear>
+            {getFilteredSubSpecs().map((sub: any) => (
+              <Select.Option key={sub.sub_specialization_id} value={sub.sub_specialization_name}>
+                {sub.sub_specialization_name}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+        <Form.Item
+          label="Medical Society"
+          name={["society"]}
+          extra="e.g., Philippine Medical Association"
+        >
+          <Input />
         </Form.Item>
         <Form.Item
           label="Intake Slug"
           name={["intake_slug"]}
-          rules={[
-            {
-              required: true,
-            },
-          ]}
+          rules={[{ required: true }]}
         >
           <Input />
         </Form.Item>
-        <Form.Item label="QR Code URL" name={["qr_code_url"]}>
-          <Input />
+
+        <Divider>Clinic Information</Divider>
+
+        <Form.Item
+          label="Clinic Name"
+          required
+        >
+          <ClinicAutocomplete
+            value={clinicName}
+            onChange={setClinicName}
+            onClinicSelect={handleClinicSelect}
+            selectedClinic={selectedClinic}
+          />
         </Form.Item>
+        <Form.Item
+          label="Street Address"
+          name={["clinic_address"]}
+          rules={[{ required: true, message: "Address is required" }]}
+        >
+          <Input
+            placeholder="e.g., 123 Main Street"
+            style={selectedClinic ? { borderColor: "#1890ff", borderWidth: "2px" } : undefined}
+            onChange={handleAddressFieldChange("clinic_address")}
+          />
+        </Form.Item>
+        <Form.Item label="Room Number" name={["room_number"]}>
+          <Input placeholder="e.g., 305" />
+        </Form.Item>
+        <Form.Item label="Floor Number" name={["floor_number"]}>
+          <Input placeholder="e.g., 3" />
+        </Form.Item>
+        <Form.Item
+          label="Barangay"
+          name={["clinic_barangay"]}
+          rules={[{ required: true, message: "Barangay is required" }]}
+        >
+          <Input
+            placeholder="e.g., Barangay San Antonio"
+            style={selectedClinic ? { borderColor: "#1890ff", borderWidth: "2px" } : undefined}
+            onChange={handleAddressFieldChange("clinic_barangay")}
+          />
+        </Form.Item>
+        <Form.Item
+          label="City"
+          name={["clinic_city"]}
+          rules={[{ required: true, message: "City is required" }]}
+        >
+          <Input
+            placeholder="e.g., Makati City"
+            style={selectedClinic ? { borderColor: "#1890ff", borderWidth: "2px" } : undefined}
+            onChange={handleAddressFieldChange("clinic_city")}
+          />
+        </Form.Item>
+        <Form.Item
+          label="Province"
+          name={["clinic_province"]}
+          rules={[{ required: true, message: "Province is required" }]}
+        >
+          <Input
+            placeholder="e.g., Metro Manila"
+            style={selectedClinic ? { borderColor: "#1890ff", borderWidth: "2px" } : undefined}
+            onChange={handleAddressFieldChange("clinic_province")}
+          />
+        </Form.Item>
+        <Form.Item
+          label="ZIP Code"
+          name={["clinic_zip"]}
+          rules={[{ required: true, message: "ZIP code is required" }]}
+        >
+          <Input
+            placeholder="e.g., 1200"
+            style={selectedClinic ? { borderColor: "#1890ff", borderWidth: "2px" } : undefined}
+            onChange={handleAddressFieldChange("clinic_zip")}
+          />
+        </Form.Item>
+        <Form.Item
+          label="Shared Clinic"
+          name={["is_shared_clinic"]}
+          valuePropName="checked"
+          extra="Is this clinic space shared with other doctors?"
+        >
+          <Switch />
+        </Form.Item>
+
+        <Divider>Secretary Information</Divider>
+
+        <Form.Item
+          label="Has Secretary"
+          name={["has_secretary"]}
+          valuePropName="checked"
+        >
+          <Switch onChange={(checked) => setHasSecretary(checked)} />
+        </Form.Item>
+        {hasSecretary && (
+          <>
+            <Form.Item
+              label="Secretary Name"
+              name={["secretary_name"]}
+              rules={[{ required: hasSecretary, message: "Secretary name is required" }]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item label="Secretary Contact" name={["secretary_contact"]}>
+              <Input placeholder="e.g., 09171234567" />
+            </Form.Item>
+            <Form.Item label="Secretary Email" name={["secretary_email"]}>
+              <Input type="email" />
+            </Form.Item>
+          </>
+        )}
+
+        <Divider>Campaign Settings</Divider>
+
         <Form.Item
           label="Campaign Zones"
           name={["campaign_zones"]}
