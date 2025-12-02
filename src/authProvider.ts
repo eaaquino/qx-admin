@@ -56,7 +56,7 @@ const authProvider: AuthProvider = {
 
       if (data?.user) {
         // Check if user is an active admin
-        const { isAdmin } = await checkAdminStatus(data.user.id);
+        const { isAdmin, adminData } = await checkAdminStatus(data.user.id);
 
         if (!isAdmin) {
           // Sign out the non-admin user
@@ -69,6 +69,12 @@ const authProvider: AuthProvider = {
             },
           };
         }
+
+        // Update last_login timestamp
+        await supabaseClient
+          .from("admins")
+          .update({ last_login: new Date().toISOString() })
+          .eq("id", adminData.id);
 
         return {
           success: true,
