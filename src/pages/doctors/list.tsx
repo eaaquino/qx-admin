@@ -6,7 +6,7 @@ import {
   ShowButton,
   useTable,
 } from "@refinedev/antd";
-import { Space, Table, Tag, Avatar, Button, Dropdown } from "antd";
+import { Space, Table, Tag, Avatar, Button, Dropdown, Typography } from "antd";
 import { BarChartOutlined, DownOutlined, CalendarOutlined } from "@ant-design/icons";
 import type { BaseRecord } from "@refinedev/core";
 import type { MenuProps } from "antd";
@@ -75,6 +75,24 @@ export const DoctorList: React.FC = () => {
           dataIndex="intake_slug"
           title="Intake Slug"
           render={(value: string) => <Tag>{value}</Tag>}
+        />
+        <Table.Column
+          dataIndex="created_at"
+          title="Registered"
+          sorter
+          render={(value: string) => {
+            if (!value) return "N/A";
+            const date = new Date(value);
+            return (
+              <Typography.Text>
+                {date.toLocaleDateString("en-PH", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </Typography.Text>
+            );
+          }}
         />
         <Table.Column
           title="Actions"

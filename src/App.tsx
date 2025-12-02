@@ -87,6 +87,13 @@ function App() {
                 notificationProvider={useNotificationProvider}
                 resources={[
                   {
+                    name: "dashboard",
+                    list: "/",
+                    meta: {
+                      label: "Dashboard",
+                    },
+                  },
+                  {
                     name: "doctors",
                     list: "/doctors",
                     edit: "/doctors/edit/:id",
