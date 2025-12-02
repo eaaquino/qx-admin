@@ -115,12 +115,50 @@ export const AuditLogList: React.FC = () => {
     return <Text type="secondary">System</Text>;
   };
 
+  // Fields to display as summary for each table
+  const getSummaryFields = (tableName: string): string[] => {
+    const fieldMap: Record<string, string[]> = {
+      admins: ["first_name", "last_name", "email"],
+      doctors: ["first_name", "last_name", "email"],
+      clinics: ["name", "address"],
+      patients: ["first_name", "last_name", "email"],
+      doctor_schedules: ["day_of_week", "start_time", "end_time"],
+      doctor_schedule_exceptions: ["exception_date", "reason"],
+      ad_campaigns: ["name", "campaign_type"],
+      campaign_zones: ["name", "description"],
+      campaign_zone_assignments: ["zone_id", "doctor_id", "clinic_id"],
+    };
+    return fieldMap[tableName] || ["name", "id"];
+  };
+
+  const renderRecordSummary = (data: Record<string, any>, tableName: string) => {
+    const fields = getSummaryFields(tableName);
+    const summaryParts = fields
+      .map((field) => data?.[field])
+      .filter((val) => val !== null && val !== undefined && val !== "");
+
+    if (summaryParts.length > 0) {
+      return <Text strong>{summaryParts.join(" - ")}</Text>;
+    }
+    return <Text type="secondary">ID: {data?.id}</Text>;
+  };
+
   const renderDataDiff = (record: BaseRecord) => {
     if (record.action === "INSERT") {
-      return <Text type="secondary">New record created</Text>;
+      return (
+        <div>
+          <Text type="secondary">Created: </Text>
+          {renderRecordSummary(record.new_data, record.table_name)}
+        </div>
+      );
     }
     if (record.action === "DELETE") {
-      return <Text type="secondary">Record deleted</Text>;
+      return (
+        <div>
+          <Text type="secondary">Deleted: </Text>
+          {renderRecordSummary(record.old_data, record.table_name)}
+        </div>
+      );
     }
     if (record.action === "UPDATE" && record.changed_fields) {
       const changes = record.changed_fields.map((field: string) => {
