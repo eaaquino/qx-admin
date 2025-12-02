@@ -67,6 +67,7 @@ import {
   SubSpecializationCreate,
   SubSpecializationEdit,
 } from "./pages/sub-specializations";
+import { AuditLogList } from "./pages/audit-log";
 import { Login } from "./pages/login"
 
 import { supabaseClient } from "./utility";
@@ -196,6 +197,13 @@ function App() {
                       parent: "Specialization Management",
                     },
                   },
+                  {
+                    name: "audit_log",
+                    list: "/audit-log",
+                    meta: {
+                      label: "Audit Log",
+                    },
+                  },
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -294,6 +302,9 @@ function App() {
                       <Route index element={<SubSpecializationList />} />
                       <Route path="create" element={<SubSpecializationCreate />} />
                       <Route path="edit/:id" element={<SubSpecializationEdit />} />
+                    </Route>
+                    <Route path="/audit-log">
+                      <Route index element={<AuditLogList />} />
                     </Route>
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
