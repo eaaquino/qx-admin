@@ -12,6 +12,7 @@ import {
   Spin,
   Typography,
   Space,
+  theme,
 } from "antd";
 import {
   EyeOutlined,
@@ -41,6 +42,7 @@ export const CampaignAnalyticsShow: React.FC = () => {
   const { query } = useShow();
   const { data, isLoading } = query;
   const record = data?.data;
+  const { token } = theme.useToken();
 
   const [dateRangePreset, setDateRangePreset] = useState<string>("7days");
   const [analytics, setAnalytics] = useState<CampaignAnalyticsResponse["data"] | null>(null);
@@ -173,11 +175,13 @@ export const CampaignAnalyticsShow: React.FC = () => {
                     width: "100%",
                     maxWidth: 200,
                     height: 120,
-                    background: "#f0f0f0",
+                    background: token.colorBgContainer,
+                    border: `1px solid ${token.colorBorder}`,
                     borderRadius: 8,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    color: token.colorTextSecondary,
                   }}
                 >
                   No image
@@ -298,7 +302,15 @@ export const CampaignAnalyticsShow: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: token.colorBgElevated,
+                      borderColor: token.colorBorder,
+                      color: token.colorText,
+                    }}
+                    labelStyle={{ color: token.colorText }}
+                    itemStyle={{ color: token.colorText }}
+                  />
                   <Legend />
                   <Line
                     type="monotone"

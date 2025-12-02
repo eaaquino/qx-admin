@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "antd";
+import { Card, theme } from "antd";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface PeakHourData {
@@ -13,6 +13,8 @@ interface PeakHoursChartProps {
 }
 
 export const PeakHoursChart: React.FC<PeakHoursChartProps> = ({ data = [], loading = false }) => {
+  const { token } = theme.useToken();
+
   // Format data for display
   const formattedData = data.map(item => ({
     ...item,
@@ -35,12 +37,19 @@ export const PeakHoursChart: React.FC<PeakHoursChartProps> = ({ data = [], loadi
             <Tooltip
               formatter={(value: number) => [`${value} sessions`, 'Count']}
               labelFormatter={(label: string) => `Hour: ${label}`}
+              contentStyle={{
+                backgroundColor: token.colorBgElevated,
+                borderColor: token.colorBorder,
+                color: token.colorText,
+              }}
+              labelStyle={{ color: token.colorText }}
+              itemStyle={{ color: token.colorText }}
             />
             <Bar dataKey="session_count" fill="#1890ff" name="Sessions" />
           </BarChart>
         </ResponsiveContainer>
       ) : (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+        <div style={{ textAlign: 'center', padding: '40px', color: token.colorTextSecondary }}>
           No peak hours data available
         </div>
       )}

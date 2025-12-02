@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Row, Col } from "antd";
+import { Card, Row, Col, theme } from "antd";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
@@ -16,6 +16,18 @@ interface DemographicsChartsProps {
 }
 
 export const DemographicsCharts: React.FC<DemographicsChartsProps> = ({ data, loading }) => {
+  const { token } = theme.useToken();
+
+  const tooltipStyle = {
+    contentStyle: {
+      backgroundColor: token.colorBgElevated,
+      borderColor: token.colorBorder,
+      color: token.colorText,
+    },
+    labelStyle: { color: token.colorText },
+    itemStyle: { color: token.colorText },
+  };
+
   return (
     <Row gutter={[16, 16]}>
       {/* Age Distribution */}
@@ -40,12 +52,12 @@ export const DemographicsCharts: React.FC<DemographicsChartsProps> = ({ data, lo
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [`${value} patients`, 'Count']} />
+                <Tooltip formatter={(value: number) => [`${value} patients`, 'Count']} {...tooltipStyle} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: token.colorTextSecondary }}>
               No age data available
             </div>
           )}
@@ -74,12 +86,12 @@ export const DemographicsCharts: React.FC<DemographicsChartsProps> = ({ data, lo
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [`${value} patients`, 'Count']} />
+                <Tooltip formatter={(value: number) => [`${value} patients`, 'Count']} {...tooltipStyle} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: token.colorTextSecondary }}>
               No sex data available
             </div>
           )}
@@ -95,12 +107,12 @@ export const DemographicsCharts: React.FC<DemographicsChartsProps> = ({ data, lo
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="category" dataKey="reason" />
                 <YAxis type="number" />
-                <Tooltip formatter={(value: number) => [`${value} patients`, 'Count']} />
+                <Tooltip formatter={(value: number) => [`${value} patients`, 'Count']} {...tooltipStyle} />
                 <Bar dataKey="patient_count" fill="#1890ff" name="Patients" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: token.colorTextSecondary }}>
               No visit reason data available
             </div>
           )}
