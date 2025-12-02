@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Typography, Radio, Checkbox, Space, Alert, Card, Tag } from 'antd';
+import { Modal, Typography, Radio, Checkbox, Space, Alert, Card, Tag, theme } from 'antd';
 
 const { Text, Title } = Typography;
 
@@ -46,6 +46,7 @@ export const CopyTimeBlocksModal: React.FC<CopyTimeBlocksModalProps> = ({
   onApply,
 }) => {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const { token } = theme.useToken();
 
   const days = [
     { key: 'monday', label: 'Monday' },
@@ -151,8 +152,8 @@ export const CopyTimeBlocksModal: React.FC<CopyTimeBlocksModalProps> = ({
               style={{
                 cursor: isSource ? 'not-allowed' : 'pointer',
                 opacity: isSource ? 0.5 : 1,
-                borderColor: isSelected ? '#1890ff' : undefined,
-                backgroundColor: isSelected ? '#e6f7ff' : isSource ? '#f5f5f5' : undefined,
+                borderColor: isSelected ? token.colorPrimary : undefined,
+                backgroundColor: isSelected ? token.colorPrimaryBg : isSource ? token.colorBgContainerDisabled : undefined,
               }}
               onClick={() => !isSource && handleToggleDay(day.key)}
               styles={{ body: { padding: '8px 12px' } }}

@@ -82,13 +82,6 @@ export const DoctorList: React.FC = () => {
           render={(_, record: BaseRecord) => {
             const analyticsItems: MenuProps['items'] = [
               {
-                key: 'schedule',
-                label: 'Manage Schedule',
-                icon: <CalendarOutlined />,
-                onClick: () => navigate(`/doctors/schedule/${record.id}`),
-              },
-              { type: 'divider' },
-              {
                 key: 'performance',
                 label: 'Performance Metrics',
                 onClick: () => navigate(`/doctors/analytics/performance/${record.id}`),
@@ -102,7 +95,6 @@ export const DoctorList: React.FC = () => {
 
             return (
               <Space>
-                <EditButton hideText size="small" recordItemId={record.id} />
                 <ShowButton hideText size="small" recordItemId={record.id} />
                 <Button
                   size="small"

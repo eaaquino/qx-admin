@@ -1,9 +1,10 @@
 import React from "react";
 import { Edit, useForm } from "@refinedev/antd";
-import { Form, Input, Switch } from "antd";
+import { Form, Input, Switch, theme } from "antd";
 
 export const CampaignZoneEdit: React.FC = () => {
   const { formProps, saveButtonProps, query } = useForm();
+  const { token } = theme.useToken();
   const isUniversal = query?.data?.data?.is_universal;
 
   return (
@@ -41,8 +42,9 @@ export const CampaignZoneEdit: React.FC = () => {
         {isUniversal && (
           <div style={{
             padding: '12px',
-            background: '#f0f0f0',
-            borderRadius: '4px',
+            background: token.colorBgContainer,
+            border: `1px solid ${token.colorBorder}`,
+            borderRadius: token.borderRadiusLG,
             marginTop: '16px'
           }}>
             ℹ️ Universal zones cannot be deleted, only deactivated.

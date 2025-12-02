@@ -15,6 +15,7 @@ import {
   Radio,
   Button,
   Space,
+  theme,
 } from "antd";
 import { UploadOutlined, TagOutlined } from "@ant-design/icons";
 import type { UploadFile, UploadProps } from "antd";
@@ -35,6 +36,7 @@ export const CampaignEdit: React.FC = () => {
   const { list } = useNavigation();
   const go = useGo();
   const { id } = useParams();
+  const { token } = theme.useToken();
 
   const { selectProps: zoneSelectProps } = useSelect({
     resource: "campaign_zones",
@@ -230,9 +232,9 @@ export const CampaignEdit: React.FC = () => {
 
         <div
           style={{
-            background: "#f0f7ff",
-            border: "1px solid #91caff",
-            borderRadius: "8px",
+            background: token.colorBgContainer,
+            border: `1px solid ${token.colorBorder}`,
+            borderRadius: token.borderRadiusLG,
             padding: "20px",
             marginBottom: "24px",
           }}
@@ -307,7 +309,7 @@ export const CampaignEdit: React.FC = () => {
                 >
                   Manage Coupons
                 </Button>
-                <div style={{ marginTop: 8, color: "#666", fontSize: "12px" }}>
+                <div style={{ marginTop: 8, color: token.colorTextSecondary, fontSize: "12px" }}>
                   Add, import, and manage coupon codes for this campaign
                 </div>
               </Form.Item>
@@ -329,10 +331,10 @@ export const CampaignEdit: React.FC = () => {
           ) : (
             <div style={{
               padding: "20px",
-              background: "#f0f0f0",
-              borderRadius: "8px",
+              background: token.colorBgContainer,
+              borderRadius: token.borderRadiusLG,
               textAlign: "center",
-              color: "#999"
+              color: token.colorTextSecondary
             }}>
               No image uploaded
             </div>
