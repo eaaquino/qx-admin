@@ -68,6 +68,7 @@ import {
   SubSpecializationEdit,
 } from "./pages/sub-specializations";
 import { AuditLogList } from "./pages/audit-log";
+import { LegalPageList, LegalPageEdit } from "./pages/legal-pages";
 import { Login } from "./pages/login"
 
 import { supabaseClient } from "./utility";
@@ -211,6 +212,14 @@ function App() {
                       label: "Audit Log",
                     },
                   },
+                  {
+                    name: "legal_pages",
+                    list: "/legal-pages",
+                    edit: "/legal-pages/edit/:id",
+                    meta: {
+                      label: "Legal Pages",
+                    },
+                  },
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -312,6 +321,10 @@ function App() {
                     </Route>
                     <Route path="/audit-log">
                       <Route index element={<AuditLogList />} />
+                    </Route>
+                    <Route path="/legal-pages">
+                      <Route index element={<LegalPageList />} />
+                      <Route path="edit/:id" element={<LegalPageEdit />} />
                     </Route>
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
