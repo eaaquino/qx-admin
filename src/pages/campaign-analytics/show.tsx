@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Show } from "@refinedev/antd";
+import { Show } from "../../components/buttons";
 import { useShow } from "@refinedev/core";
 import {
   Card,

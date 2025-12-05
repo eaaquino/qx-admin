@@ -1,9 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
   DateField,
-  DeleteButton,
-  EditButton,
-  List,
   ShowButton,
   useTable,
 } from "@refinedev/antd";
@@ -12,6 +9,7 @@ import type { BaseRecord } from "@refinedev/core";
 import type { CrudFilters } from "@refinedev/core";
 import { MultiSelectFilter } from "../../components";
 import { supabaseClient } from "../../utility";
+import { EditButton, DeleteButton, List } from "../../components/buttons";
 
 type CampaignStatus = "active" | "scheduled" | "expired" | "disabled";
 

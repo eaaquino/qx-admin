@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
   DateField,
-  List,
   ShowButton,
   useTable,
 } from "@refinedev/antd";
@@ -12,6 +11,7 @@ import type { CrudFilters } from "@refinedev/core";
 import { MultiSelectFilter } from "../../components";
 import { analyticsService, getDateRange } from "../../services/analyticsService";
 import { supabaseClient } from "../../utility";
+import { List } from "../../components/buttons";
 
 type CampaignStatus = "active" | "scheduled" | "expired" | "disabled";
 

@@ -1,13 +1,12 @@
 import React from "react";
 import {
   DateField,
-  DeleteButton,
-  List,
   ShowButton,
   useTable,
 } from "@refinedev/antd";
 import { Space, Table } from "antd";
 import type { BaseRecord } from "@refinedev/core";
+import { DeleteButton, List } from "../../components/buttons";
 
 export const PatientList: React.FC = () => {
   const { tableProps } = useTable({

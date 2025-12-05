@@ -1,14 +1,12 @@
 import React from "react";
 import {
   DateField,
-  DeleteButton,
-  EditButton,
-  List,
   useTable,
 } from "@refinedev/antd";
 import { useMany } from "@refinedev/core";
 import { Space, Table, Tag, Badge } from "antd";
 import type { BaseRecord } from "@refinedev/core";
+import { EditButton, DeleteButton, List } from "../../components/buttons";
 
 export const SubSpecializationList: React.FC = () => {
   const { tableProps } = useTable({

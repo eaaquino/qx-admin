@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { List, DateField, useTable } from "@refinedev/antd";
+import { DateField, useTable } from "@refinedev/antd";
 import { Table, Tag, Select, DatePicker, Space, Typography, Tooltip } from "antd";
 import type { BaseRecord } from "@refinedev/core";
 import dayjs from "dayjs";
 import { supabaseClient } from "../../utility";
+import { List } from "../../components/buttons";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;

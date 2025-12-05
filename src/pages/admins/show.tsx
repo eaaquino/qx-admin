@@ -1,5 +1,6 @@
 import React from "react";
-import { DateField, Show, TextField } from "@refinedev/antd";
+import { DateField, TextField } from "@refinedev/antd";
+import { Show } from "../../components/buttons";
 import { useShow } from "@refinedev/core";
 import { Typography, Descriptions, Tag, Avatar } from "antd";
 

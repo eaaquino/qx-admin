@@ -1,7 +1,8 @@
 import React from "react";
-import { List, EditButton, DateField, useTable } from "@refinedev/antd";
+import { DateField, useTable } from "@refinedev/antd";
 import { Table, Typography } from "antd";
 import type { BaseRecord } from "@refinedev/core";
+import { EditButton, List } from "../../components/buttons";
 
 const { Text } = Typography;
 

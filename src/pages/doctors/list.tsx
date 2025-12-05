@@ -1,8 +1,5 @@
 import React from "react";
 import {
-  DeleteButton,
-  EditButton,
-  List,
   ShowButton,
   useTable,
 } from "@refinedev/antd";
@@ -11,6 +8,7 @@ import { BarChartOutlined, DownOutlined, CalendarOutlined } from "@ant-design/ic
 import type { BaseRecord } from "@refinedev/core";
 import type { MenuProps } from "antd";
 import { useNavigate } from "react-router";
+import { DeleteButton, List } from "../../components/buttons";
 
 export const DoctorList: React.FC = () => {
   const navigate = useNavigate();

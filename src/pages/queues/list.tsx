@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { List } from "@refinedev/antd";
 import { Space, Table, Tag, Button, Card, Typography, Switch } from "antd";
 import { EyeOutlined, SyncOutlined } from "@ant-design/icons";
 import { supabaseClient } from "../../utility";
+import { List } from "../../components/buttons";
 
 const { Text } = Typography;
 
