@@ -38,8 +38,20 @@ export const ClinicShow: React.FC = () => {
         <Descriptions.Item label="Name">
           <TextField value={record?.name} />
         </Descriptions.Item>
-        <Descriptions.Item label="Address">
+        <Descriptions.Item label="Street Address">
           <TextField value={record?.address || "N/A"} />
+        </Descriptions.Item>
+        <Descriptions.Item label="Barangay">
+          <TextField value={record?.barangay || "N/A"} />
+        </Descriptions.Item>
+        <Descriptions.Item label="City">
+          <TextField value={record?.city || "N/A"} />
+        </Descriptions.Item>
+        <Descriptions.Item label="Province">
+          <TextField value={record?.province || "N/A"} />
+        </Descriptions.Item>
+        <Descriptions.Item label="ZIP Code">
+          <TextField value={record?.zip || "N/A"} />
         </Descriptions.Item>
         <Descriptions.Item label="Phone">
           <TextField value={record?.phone || "N/A"} />

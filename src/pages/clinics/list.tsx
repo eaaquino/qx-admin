@@ -17,6 +17,7 @@ export const ClinicList: React.FC = () => {
     <List>
       <Table {...tableProps} rowKey="id">
         <Table.Column dataIndex="name" title="Name" sorter />
+        <Table.Column dataIndex="city" title="City" sorter />
         <Table.Column dataIndex="address" title="Address" />
         <Table.Column dataIndex="phone" title="Phone" />
         <Table.Column dataIndex="email" title="Email" />

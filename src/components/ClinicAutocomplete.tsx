@@ -8,6 +8,10 @@ interface Clinic {
   id: string;
   name: string;
   address?: string;
+  barangay?: string;
+  city?: string;
+  province?: string;
+  zip?: string;
 }
 
 interface ClinicAutocompleteProps {
@@ -61,7 +65,7 @@ export default function ClinicAutocomplete({
     try {
       const { data, error } = await supabaseClient
         .from('clinics')
-        .select('id, name, address')
+        .select('id, name, address, barangay, city, province, zip')
         .ilike('name', `%${searchQuery}%`)
         .order('name')
         .limit(10);
@@ -269,7 +273,7 @@ export default function ClinicAutocomplete({
               }}
             >
               <div style={{ fontWeight: 500 }}>{clinic.name}</div>
-              {clinic.address && (
+              {(clinic.address || clinic.barangay || clinic.city || clinic.province) && (
                 <div
                   style={{
                     fontSize: '12px',
@@ -280,7 +284,12 @@ export default function ClinicAutocomplete({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {clinic.address}
+                  {[
+                    clinic.address,
+                    clinic.barangay,
+                    clinic.city,
+                    [clinic.province, clinic.zip].filter(Boolean).join(' ')
+                  ].filter(Boolean).join(', ')}
                 </div>
               )}
             </li>

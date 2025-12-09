@@ -13,6 +13,10 @@ interface Clinic {
   id: string;
   name: string;
   address?: string;
+  barangay?: string;
+  city?: string;
+  province?: string;
+  zip?: string;
 }
 
 const CIVIL_STATUS_OPTIONS = ["Single", "Married", "Widowed", "Separated", "Divorced"];
@@ -34,43 +38,16 @@ export const DoctorEdit: React.FC = () => {
   const { list } = useNavigation();
   const { id } = useParams();
 
-  // Parse clinic address into parts
-  const parseClinicAddress = (addressStr: string | undefined) => {
-    if (!addressStr) {
-      return { address: "", barangay: "", city: "", province: "", zip: "" };
-    }
-    const parts = addressStr.split(",").map((p) => p.trim());
-    if (parts.length >= 4) {
-      const lastPart = parts[parts.length - 1] || "";
-      const zipMatch = lastPart.match(/\s+(\d{4,})$/);
-      const zip = zipMatch ? zipMatch[1] : "";
-      const province = zipMatch ? lastPart.replace(/\s+\d{4,}$/, "").trim() : lastPart;
-      return {
-        address: parts[0] || "",
-        barangay: parts[1] || "",
-        city: parts[2] || "",
-        province: province,
-        zip: zip,
-      };
-    } else if (parts.length === 3) {
-      return { address: parts[0] || "", barangay: "", city: parts[1] || "", province: parts[2] || "", zip: "" };
-    } else if (parts.length === 2) {
-      return { address: parts[0] || "", barangay: "", city: parts[1] || "", province: "", zip: "" };
-    }
-    return { address: addressStr, barangay: "", city: "", province: "", zip: "" };
-  };
-
   // Handle clinic selection from autocomplete
   const handleClinicSelect = (clinic: Clinic | null) => {
     setSelectedClinic(clinic);
     if (clinic) {
-      const addressParts = parseClinicAddress(clinic.address);
       form.setFieldsValue({
-        clinic_address: addressParts.address,
-        clinic_barangay: addressParts.barangay,
-        clinic_city: addressParts.city,
-        clinic_province: addressParts.province,
-        clinic_zip: addressParts.zip,
+        clinic_address: clinic.address || "",
+        clinic_barangay: clinic.barangay || "",
+        clinic_city: clinic.city || "",
+        clinic_province: clinic.province || "",
+        clinic_zip: clinic.zip || "",
       });
     }
   };
@@ -164,20 +141,19 @@ export const DoctorEdit: React.FC = () => {
         if (doctor.clinic_id) {
           const { data: clinic } = await supabaseClient
             .from("clinics")
-            .select("id, name, address")
+            .select("id, name, address, barangay, city, province, zip")
             .eq("id", doctor.clinic_id)
             .single();
 
           if (clinic) {
             setSelectedClinic(clinic);
             setClinicName(clinic.name);
-            const addressParts = parseClinicAddress(clinic.address);
             form.setFieldsValue({
-              clinic_address: addressParts.address,
-              clinic_barangay: addressParts.barangay,
-              clinic_city: addressParts.city,
-              clinic_province: addressParts.province,
-              clinic_zip: addressParts.zip,
+              clinic_address: clinic.address || "",
+              clinic_barangay: clinic.barangay || "",
+              clinic_city: clinic.city || "",
+              clinic_province: clinic.province || "",
+              clinic_zip: clinic.zip || "",
             });
           }
         }
@@ -263,25 +239,20 @@ export const DoctorEdit: React.FC = () => {
         photoToUse = newPhotoUrl;
       }
 
-      // Build address from form fields
-      const addressParts = [
-        values.clinic_address,
-        values.clinic_barangay,
-        values.clinic_city,
-        `${values.clinic_province || ""} ${values.clinic_zip || ""}`.trim(),
-      ].filter(Boolean);
-      const fullAddress = addressParts.join(", ");
-
-      // Update existing clinic or create new one
+      // Update existing clinic or create new one with dedicated columns
       let clinicId = selectedClinic?.id || null;
 
       if (clinicId) {
-        // Update existing clinic
+        // Update existing clinic with dedicated columns
         const { error: clinicError } = await supabaseClient
           .from("clinics")
           .update({
             name: clinicName,
-            address: fullAddress,
+            address: values.clinic_address || null,
+            barangay: values.clinic_barangay || null,
+            city: values.clinic_city || null,
+            province: values.clinic_province || null,
+            zip: values.clinic_zip || null,
           })
           .eq("id", clinicId);
 
@@ -289,12 +260,16 @@ export const DoctorEdit: React.FC = () => {
           throw new Error(`Failed to update clinic: ${clinicError.message}`);
         }
       } else if (clinicName) {
-        // Create new clinic
+        // Create new clinic with dedicated columns
         const { data: newClinic, error: clinicError } = await supabaseClient
           .from("clinics")
           .insert({
             name: clinicName,
-            address: fullAddress,
+            address: values.clinic_address || null,
+            barangay: values.clinic_barangay || null,
+            city: values.clinic_city || null,
+            province: values.clinic_province || null,
+            zip: values.clinic_zip || null,
             phone: values.phone || "",
             email: `clinic-${Date.now()}@default.com`,
           })

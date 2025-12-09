@@ -14,7 +14,7 @@ export const DoctorShow: React.FC = () => {
   const { query, result } = useShow({
     resource: "doctors",
     meta: {
-      select: "*, clinics(name, address)",
+      select: "*, clinics(name, address, barangay, city, province, zip)",
     },
   });
 
@@ -213,7 +213,14 @@ export const DoctorShow: React.FC = () => {
           <TextField value={record?.clinics?.name || "N/A"} />
         </Descriptions.Item>
         <Descriptions.Item label="Clinic Address">
-          <TextField value={record?.clinics?.address || "N/A"} />
+          <TextField value={
+            record?.clinics ? [
+              record.clinics.address,
+              record.clinics.barangay,
+              record.clinics.city,
+              [record.clinics.province, record.clinics.zip].filter(Boolean).join(' ')
+            ].filter(Boolean).join(', ') || "N/A" : "N/A"
+          } />
         </Descriptions.Item>
         <Descriptions.Item label="Room Number">
           <TextField value={record?.room_number || "N/A"} />
