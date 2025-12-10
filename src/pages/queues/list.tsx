@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Space, Table, Tag, Button, Card, Typography, Switch } from "antd";
-import { EyeOutlined, SyncOutlined } from "@ant-design/icons";
+import { Space, Table, Tag, Button, Card, Typography, Switch, Dropdown } from "antd";
+import { EyeOutlined, SyncOutlined, CalendarOutlined, BarChartOutlined, DownOutlined, UserOutlined } from "@ant-design/icons";
+import type { MenuProps } from "antd";
+import { useNavigate } from "react-router";
 import { supabaseClient } from "../../utility";
 import { List } from "../../components/buttons";
 
@@ -33,6 +35,7 @@ const isDoctorClockedIn = (timestamp: string | null): boolean => {
 };
 
 export const QueueList: React.FC = () => {
+  const navigate = useNavigate();
   const [queueSummaries, setQueueSummaries] = useState<DoctorQueueSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(30);
@@ -233,7 +236,7 @@ export const QueueList: React.FC = () => {
         </Space>
       }
     >
-      {queueSummaries.length === 0 ? (
+      {queueSummaries.length === 0 && !loading ? (
         <Card>
           <Text type="secondary">
             {showAllDoctors
@@ -300,18 +303,50 @@ export const QueueList: React.FC = () => {
           <Table.Column
             title="Actions"
             dataIndex="actions"
-            render={(_, record: DoctorQueueSummary) => (
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<EyeOutlined />}
-                  size="small"
-                  href={`/queues/doctor/${record.doctor_id}`}
-                >
-                  View Queue
-                </Button>
-              </Space>
-            )}
+            render={(_, record: DoctorQueueSummary) => {
+              const analyticsItems: MenuProps['items'] = [
+                {
+                  key: 'performance',
+                  label: 'Performance Metrics',
+                  onClick: () => navigate(`/doctors/analytics/performance/${record.doctor_id}`),
+                },
+                {
+                  key: 'history',
+                  label: 'Patient History',
+                  onClick: () => navigate(`/doctors/analytics/history/${record.doctor_id}`),
+                },
+              ];
+
+              return (
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<EyeOutlined />}
+                    size="small"
+                    href={`/queues/doctor/${record.doctor_id}`}
+                  >
+                    View Queue
+                  </Button>
+                  <Button
+                    size="small"
+                    icon={<UserOutlined />}
+                    onClick={() => navigate(`/doctors/show/${record.doctor_id}`)}
+                    title="View Profile"
+                  />
+                  <Button
+                    size="small"
+                    icon={<CalendarOutlined />}
+                    onClick={() => navigate(`/doctors/schedule/${record.doctor_id}`)}
+                    title="View Schedule"
+                  />
+                  <Dropdown menu={{ items: analyticsItems }} trigger={['click']}>
+                    <Button size="small" icon={<BarChartOutlined />} title="Analytics">
+                      <DownOutlined />
+                    </Button>
+                  </Dropdown>
+                </Space>
+              );
+            }}
           />
         </Table>
       )}
