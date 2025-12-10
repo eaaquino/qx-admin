@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Card, Typography, Tag, Space, Button, Descriptions, Row, Col, Tooltip, theme } from "antd";
-import { ArrowLeftOutlined, ReloadOutlined, SyncOutlined } from "@ant-design/icons";
+import { Card, Typography, Tag, Space, Button, Descriptions, Row, Col, Tooltip, theme, DatePicker } from "antd";
+import { ArrowLeftOutlined, SyncOutlined, HistoryOutlined } from "@ant-design/icons";
+import dayjs, { Dayjs } from "dayjs";
 import { supabaseClient } from "../../utility";
 import { ColorModeContext } from "../../contexts/color-mode";
 
@@ -17,8 +18,21 @@ interface QueueEntry {
   check_in_time: string;
   called_time: string | null;
   completed_time: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
   patients: any;
 }
+
+// Get cancellation reason display label
+const getCancellationReasonLabel = (reason: string | null): string => {
+  const labels: Record<string, string> = {
+    'expired_session': 'Session Expired',
+    'no_show': 'No Show',
+    'doctor_cancelled': 'Doctor Cancelled',
+    'patient_cancelled': 'Patient Cancelled',
+  };
+  return reason ? labels[reason] || reason : 'Unknown';
+};
 
 // Visit type durations (matching edge function)
 const VISIT_TYPE_DURATIONS: Record<string, number> = {
@@ -63,6 +77,19 @@ interface DoctorInfo {
   is_in_timestamp: string | null;
 }
 
+// Get today's date in PH timezone as dayjs object
+const getTodayPH = (): Dayjs => {
+  const now = new Date();
+  const phDateString = now.toLocaleString('en-US', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const [month, day, year] = phDateString.split('/');
+  return dayjs(`${year}-${month}-${day}`);
+};
+
 export const DoctorQueueMonitor: React.FC = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
   const navigate = useNavigate();
@@ -70,16 +97,21 @@ export const DoctorQueueMonitor: React.FC = () => {
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(30);
+  const [selectedDate, setSelectedDate] = useState<Dayjs>(getTodayPH());
   const { mode } = useContext(ColorModeContext);
   const { token } = useToken();
   const isDarkMode = mode === "dark";
   const REFRESH_INTERVAL = 30000; // 30 seconds
+
+  // Check if viewing today's queue (enable auto-refresh only for today)
+  const isToday = selectedDate.format('YYYY-MM-DD') === getTodayPH().format('YYYY-MM-DD');
 
   // Column header colors that adapt to dark mode
   const columnColors = {
     ongoing: isDarkMode ? token.colorInfoBg : "#e6f7ff",
     waiting: isDarkMode ? token.colorWarningBg : "#fff7e6",
     completed: isDarkMode ? token.colorSuccessBg : "#f6ffed",
+    cancelled: isDarkMode ? token.colorErrorBg : "#fff1f0",
   };
 
   // Fetch doctor info
@@ -110,18 +142,10 @@ export const DoctorQueueMonitor: React.FC = () => {
 
     setLoading(true);
     try {
-      // Calculate "today" in Philippine timezone (GMT+8)
-      const now = new Date();
-      const phDateString = now.toLocaleString('en-US', {
-        timeZone: 'Asia/Manila',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-
-      // Parse MM/DD/YYYY format and create midnight in PH time
-      const [month, day, year] = phDateString.split('/');
-      const today = new Date(`${year}-${month}-${day}T00:00:00+08:00`);
+      // Use selectedDate to create start and end of day in PH timezone
+      const dateStr = selectedDate.format('YYYY-MM-DD');
+      const startOfDay = new Date(`${dateStr}T00:00:00+08:00`);
+      const endOfDay = new Date(`${dateStr}T23:59:59+08:00`);
 
       const { data, error } = await supabaseClient
         .from("queue_entries")
@@ -134,10 +158,13 @@ export const DoctorQueueMonitor: React.FC = () => {
           check_in_time,
           called_time,
           completed_time,
+          cancelled_at,
+          cancellation_reason,
           patients(name, phone)
         `)
         .eq("doctor_id", doctorId)
-        .gte("check_in_time", today.toISOString())
+        .gte("check_in_time", startOfDay.toISOString())
+        .lte("check_in_time", endOfDay.toISOString())
         .order("check_in_time", { ascending: true });
 
       if (error) throw error;
@@ -150,29 +177,33 @@ export const DoctorQueueMonitor: React.FC = () => {
     }
   };
 
-  // Initial fetch
+  // Fetch when doctorId or selectedDate changes
   useEffect(() => {
     fetchQueueEntries();
-  }, [doctorId]);
+  }, [doctorId, selectedDate]);
 
-  // Polling interval for queue updates
+  // Polling interval for queue updates (only for today's date)
   useEffect(() => {
+    if (!isToday) return; // Don't auto-refresh for historical dates
+
     const interval = setInterval(() => {
       fetchQueueEntries();
       setCountdown(30);
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [doctorId]);
+  }, [doctorId, selectedDate, isToday]);
 
-  // Countdown timer
+  // Countdown timer (only for today's date)
   useEffect(() => {
+    if (!isToday) return;
+
     const timer = setInterval(() => {
       setCountdown((prev) => (prev > 0 ? prev - 1 : 30));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isToday]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -194,6 +225,14 @@ export const DoctorQueueMonitor: React.FC = () => {
       // Sort by completed_time descending (newest first)
       const aTime = a.completed_time ? new Date(a.completed_time).getTime() : 0;
       const bTime = b.completed_time ? new Date(b.completed_time).getTime() : 0;
+      return bTime - aTime;
+    });
+  const cancelled = queueEntries
+    .filter((e) => e.status === "cancelled" || e.status === "no_show")
+    .sort((a, b) => {
+      // Sort by check_in_time descending (newest first)
+      const aTime = new Date(a.check_in_time).getTime();
+      const bTime = new Date(b.check_in_time).getTime();
       return bTime - aTime;
     });
 
@@ -264,7 +303,7 @@ export const DoctorQueueMonitor: React.FC = () => {
   };
 
   // QueueCard now accepts position prop derived from array index
-  const QueueCard: React.FC<{ entry: QueueEntry; isCompleted?: boolean; position?: number }> = ({ entry, isCompleted, position }) => {
+  const QueueCard: React.FC<{ entry: QueueEntry; isCompleted?: boolean; isCancelled?: boolean; position?: number }> = ({ entry, isCompleted, isCancelled, position }) => {
     const dynamicWaitTime = calculateWaitTime(entry);
     const reasonBadge = getReasonBadge(entry.reason_for_visit);
     const sessionDuration = isCompleted ? getSessionDuration(entry) : null;
@@ -280,7 +319,7 @@ export const DoctorQueueMonitor: React.FC = () => {
           {/* Row 1: Position + Name + Reason Badge */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Space>
-              {!isCompleted && position !== undefined && (
+              {!isCompleted && !isCancelled && position !== undefined && (
                 <Tag color="blue" style={{ fontSize: "16px", fontWeight: "bold", padding: "4px 12px", margin: 0 }}>
                   #{position}
                 </Tag>
@@ -301,8 +340,17 @@ export const DoctorQueueMonitor: React.FC = () => {
             </Tag>
           </div>
 
-          {/* Row 2: Status badge (for non-completed) */}
-          {!isCompleted && (
+          {/* Row 2: Cancellation reason badge (for cancelled/no_show entries) */}
+          {isCancelled && (
+            <div>
+              <Tag color="red" style={{ margin: 0 }}>
+                {getCancellationReasonLabel(entry.cancellation_reason)}
+              </Tag>
+            </div>
+          )}
+
+          {/* Row 2: Status badge (for ongoing/waiting) */}
+          {!isCompleted && !isCancelled && (
             <div>
               <Tag color={getStatusColor(entry.status)} style={{ margin: 0 }}>
                 {entry.status.replace('_', ' ').toUpperCase()}
@@ -312,7 +360,15 @@ export const DoctorQueueMonitor: React.FC = () => {
 
           {/* Row 3: Time info */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {isCompleted ? (
+            {isCancelled ? (
+              // For cancelled: show check-in time and cancelled time
+              <>
+                <Text type="secondary">Check-in: {formatTime(entry.check_in_time)}</Text>
+                {entry.cancelled_at && (
+                  <Text type="secondary">Cancelled: {formatTime(entry.cancelled_at)}</Text>
+                )}
+              </>
+            ) : isCompleted ? (
               // For completed: show waiting time and session duration with tooltips
               <>
                 <Tooltip
@@ -371,18 +427,54 @@ export const DoctorQueueMonitor: React.FC = () => {
       <Space direction="vertical" style={{ width: "100%" }} size={24}>
         {/* Header */}
         <Card>
-          <Space style={{ width: "100%", justifyContent: "space-between" }}>
+          {/* Row 1: Back button and Date controls */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate("/queues")}
+            >
+              Back to Queue List
+            </Button>
             <Space>
-              <Button
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigate("/queues")}
-              >
-                Back to Queue List
-              </Button>
-              <Title level={3} style={{ margin: 0 }}>
-                Queue Monitor - Dr. {doctorInfo.first_name} {doctorInfo.last_name}
-              </Title>
-              {isDoctorClockedIn(doctorInfo.is_in_timestamp) ? (
+              <DatePicker
+                value={selectedDate}
+                onChange={(date) => date && setSelectedDate(date)}
+                disabledDate={(current) => current && current > getTodayPH().endOf('day')}
+                allowClear={false}
+                format="MMM D, YYYY"
+              />
+              {!isToday && (
+                <Button onClick={() => setSelectedDate(getTodayPH())}>
+                  Back to Today
+                </Button>
+              )}
+              {isToday && (
+                <>
+                  <Text type="secondary">
+                    Refreshing in {countdown}s
+                  </Text>
+                  <Button
+                    icon={<SyncOutlined spin={loading} />}
+                    onClick={() => {
+                      fetchQueueEntries();
+                      setCountdown(30);
+                    }}
+                    loading={loading}
+                  >
+                    Refresh
+                  </Button>
+                </>
+              )}
+            </Space>
+          </div>
+
+          {/* Row 2: Doctor name and status */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <Title level={3} style={{ margin: 0 }}>
+              Dr. {doctorInfo.first_name} {doctorInfo.last_name}
+            </Title>
+            {isToday ? (
+              isDoctorClockedIn(doctorInfo.is_in_timestamp) ? (
                 <Tag color="green" style={{ fontSize: "14px", padding: "4px 12px" }}>
                   CLOCKED IN
                 </Tag>
@@ -390,35 +482,29 @@ export const DoctorQueueMonitor: React.FC = () => {
                 <Tag color="red" style={{ fontSize: "14px", padding: "4px 12px" }}>
                   CLOCKED OUT
                 </Tag>
-              )}
-            </Space>
-            <Space>
-              <Text type="secondary">
-                Refreshing in {countdown}s
-              </Text>
-              <Button
-                icon={<SyncOutlined spin={loading} />}
-                onClick={() => {
-                  fetchQueueEntries();
-                  setCountdown(30);
-                }}
-                loading={loading}
-              >
-                Refresh Now
-              </Button>
-            </Space>
-          </Space>
+              )
+            ) : (
+              <Tag color="purple" icon={<HistoryOutlined />} style={{ fontSize: "14px", padding: "4px 12px" }}>
+                HISTORICAL VIEW
+              </Tag>
+            )}
+          </div>
 
-          <Descriptions style={{ marginTop: 16 }} column={2} size="small">
-            <Descriptions.Item label="Clinic">{doctorInfo.clinics?.name || "N/A"}</Descriptions.Item>
-            <Descriptions.Item label="Specialization">{doctorInfo.specialization || "N/A"}</Descriptions.Item>
-          </Descriptions>
+          {/* Row 3: Clinic and Specialization */}
+          <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
+            <Text type="secondary">
+              <Text strong>Clinic:</Text> {doctorInfo.clinics?.name || "N/A"}
+            </Text>
+            <Text type="secondary">
+              <Text strong>Specialization:</Text> {doctorInfo.specialization || "N/A"}
+            </Text>
+          </Space>
         </Card>
 
         {/* Queue Sections */}
         <Row gutter={16}>
           {/* Ongoing */}
-          <Col span={8}>
+          <Col span={6}>
             <Card
               title={
                 <Space>
@@ -437,7 +523,7 @@ export const DoctorQueueMonitor: React.FC = () => {
           </Col>
 
           {/* Waiting */}
-          <Col span={8}>
+          <Col span={6}>
             <Card
               title={
                 <Space>
@@ -456,11 +542,11 @@ export const DoctorQueueMonitor: React.FC = () => {
           </Col>
 
           {/* Completed */}
-          <Col span={8}>
+          <Col span={6}>
             <Card
               title={
                 <Space>
-                  <Text strong>Completed Today</Text>
+                  <Text strong>{isToday ? "Completed" : `Completed (${selectedDate.format('MMM D')})`}</Text>
                   <Tag color="green">{completed.length}</Tag>
                 </Space>
               }
@@ -470,6 +556,25 @@ export const DoctorQueueMonitor: React.FC = () => {
                 <Text type="secondary">No completed patients</Text>
               ) : (
                 completed.map((entry) => <QueueCard key={entry.id} entry={entry} isCompleted />)
+              )}
+            </Card>
+          </Col>
+
+          {/* Cancelled */}
+          <Col span={6}>
+            <Card
+              title={
+                <Space>
+                  <Text strong>{isToday ? "Cancelled" : `Cancelled (${selectedDate.format('MMM D')})`}</Text>
+                  <Tag color="red">{cancelled.length}</Tag>
+                </Space>
+              }
+              headStyle={{ backgroundColor: columnColors.cancelled }}
+            >
+              {cancelled.length === 0 ? (
+                <Text type="secondary">No cancelled patients</Text>
+              ) : (
+                cancelled.map((entry) => <QueueCard key={entry.id} entry={entry} isCancelled />)
               )}
             </Card>
           </Col>
