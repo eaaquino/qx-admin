@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { DateField, TextField } from "@refinedev/antd";
 import { Show } from "../../components/buttons";
 import { useShow } from "@refinedev/core";
-import { Typography, Descriptions, Tag, Space, Avatar, Button, Image, Spin } from "antd";
+import { Typography, Descriptions, Tag, Space, Avatar, Button, Image, Spin, Switch, message } from "antd";
 import { CalendarOutlined, BarChartOutlined, HistoryOutlined, FileImageOutlined, FilePdfOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router";
 import { supabaseClient } from "../../utility";
@@ -18,10 +18,11 @@ export const DoctorShow: React.FC = () => {
     },
   });
 
-  const { isLoading } = query;
+  const { isLoading, refetch } = query;
   const [zones, setZones] = useState<string[]>([]);
   const [prcIdUrl, setPrcIdUrl] = useState<string | null>(null);
   const [prcIdLoading, setPrcIdLoading] = useState(false);
+  const [isActiveLoading, setIsActiveLoading] = useState(false);
 
   const record = result;
 
@@ -89,6 +90,29 @@ export const DoctorShow: React.FC = () => {
     });
   };
 
+  // Handle is_active toggle
+  const handleIsActiveToggle = async (checked: boolean) => {
+    if (!record?.id) return;
+
+    setIsActiveLoading(true);
+    try {
+      const { error } = await supabaseClient
+        .from("doctors")
+        .update({ is_active: checked })
+        .eq("id", record.id);
+
+      if (error) throw error;
+
+      message.success(`Doctor ${checked ? "enabled" : "disabled"} successfully`);
+      refetch();
+    } catch (error: any) {
+      console.error("Error updating doctor status:", error);
+      message.error(error.message || "Failed to update doctor status");
+    } finally {
+      setIsActiveLoading(false);
+    }
+  };
+
   return (
     <Show isLoading={isLoading}>
       {/* Header Section */}
@@ -102,15 +126,29 @@ export const DoctorShow: React.FC = () => {
             {record?.first_name?.charAt(0)}{record?.last_name?.charAt(0)}
           </Avatar>
           <div>
-            <Title level={3} style={{ margin: 0 }}>
-              Dr. {record?.first_name} {record?.last_name}
-            </Title>
+            <Space align="center">
+              <Title level={3} style={{ margin: 0 }}>
+                Dr. {record?.first_name} {record?.last_name}
+              </Title>
+              {record?.is_active === false && (
+                <Tag color="red">Inactive</Tag>
+              )}
+            </Space>
             <Space style={{ marginTop: '8px' }}>
               <Tag color="blue">{record?.specialization}</Tag>
               {record?.sub_specialization && (
                 <Tag color="cyan">{record?.sub_specialization}</Tag>
               )}
             </Space>
+          </div>
+          <div style={{ marginLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Switch
+              checked={record?.is_active !== false}
+              onChange={handleIsActiveToggle}
+              loading={isActiveLoading}
+              checkedChildren="Active"
+              unCheckedChildren="Inactive"
+            />
           </div>
         </div>
         <Space>

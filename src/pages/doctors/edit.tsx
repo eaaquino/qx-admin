@@ -310,6 +310,7 @@ export const DoctorEdit: React.FC = () => {
           secretary_email: values.has_secretary ? values.secretary_email : null,
           intake_slug: values.intake_slug,
           profile_photo_url: photoToUse,
+          is_active: values.is_active !== false,
         })
         .eq("id", id);
 
@@ -357,6 +358,21 @@ export const DoctorEdit: React.FC = () => {
       }}
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        {/* Doctor Status Toggle */}
+        <Form.Item
+          label="Doctor Status"
+          name={["is_active"]}
+          valuePropName="checked"
+          extra="Inactive doctors are hidden from patient-facing features (intake, search, QR scan)"
+        >
+          <Switch
+            checkedChildren="Active"
+            unCheckedChildren="Inactive"
+          />
+        </Form.Item>
+
+        <Divider />
+
         {/* Profile Photo Upload */}
         <div style={{ marginBottom: "24px" }}>
           <label style={{ display: "block", marginBottom: "8px", fontWeight: 500 }}>

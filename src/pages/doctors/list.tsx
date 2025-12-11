@@ -35,7 +35,10 @@ export const DoctorList: React.FC = () => {
             <Avatar
               size={40}
               src={value}
-              style={{ backgroundColor: '#004777' }}
+              style={{
+                backgroundColor: '#004777',
+                border: record.is_active === false ? '3px solid #ff4d4f' : undefined,
+              }}
             >
               {record.first_name?.charAt(0)}{record.last_name?.charAt(0)}
             </Avatar>
