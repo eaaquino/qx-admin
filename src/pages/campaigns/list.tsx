@@ -196,14 +196,14 @@ export const CampaignList: React.FC = () => {
                 src={value}
                 alt={record.title}
                 width={100}
-                height={60}
+                height={50}
                 style={{ objectFit: "cover", borderRadius: "4px" }}
                 preview
               />
             ) : (
               <div style={{
                 width: 100,
-                height: 60,
+                height: 50,
                 background: "#f0f0f0",
                 borderRadius: "4px",
                 display: "flex",

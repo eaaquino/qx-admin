@@ -18,6 +18,36 @@ import type { UploadFile, UploadProps } from "antd";
 import { supabaseClient } from "../../utility";
 import dayjs from "dayjs";
 
+// Banner image specs: 2:1 aspect ratio (600x300 standard, 1200x600 retina)
+const BANNER_ASPECT_RATIO = 2;
+const ASPECT_RATIO_TOLERANCE = 0.1; // Allow 10% variance
+
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; width: number; height: number; message?: string }> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const { width, height } = img;
+      const aspectRatio = width / height;
+      const isValidRatio = Math.abs(aspectRatio - BANNER_ASPECT_RATIO) <= ASPECT_RATIO_TOLERANCE;
+
+      if (!isValidRatio) {
+        resolve({
+          valid: false,
+          width,
+          height,
+          message: `Image aspect ratio should be 2:1. Your image is ${width}x${height} (${aspectRatio.toFixed(2)}:1). Recommended: 600x300 or 1200x600 pixels.`
+        });
+      } else {
+        resolve({ valid: true, width, height });
+      }
+    };
+    img.onerror = () => {
+      resolve({ valid: false, width: 0, height: 0, message: "Failed to load image" });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export const CampaignCreate: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -70,6 +100,12 @@ export const CampaignCreate: React.FC = () => {
   }) => {
     setUploading(true);
     try {
+      // Check image dimensions and warn if not optimal
+      const validation = await validateImageDimensions(file as File);
+      if (!validation.valid) {
+        message.warning(validation.message + " The image will be cropped to fit.", 6);
+      }
+
       const uploadedUrl = await uploadImage(file as File);
       setImageUrl(uploadedUrl);
       onSuccess?.("ok");
@@ -197,7 +233,7 @@ export const CampaignCreate: React.FC = () => {
               message: "Please upload a banner image",
             },
           ]}
-          extra="Upload banner image (JPG, PNG, WebP, GIF - Max 5MB)"
+          extra="Recommended size: 600x300px (or 1200x600px for retina). Aspect ratio must be 2:1. Accepted formats: JPG, PNG, WebP, GIF (Max 5MB)"
         >
           <Upload
             customRequest={handleUpload}

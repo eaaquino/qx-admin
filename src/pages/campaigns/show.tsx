@@ -74,9 +74,15 @@ export const CampaignShow: React.FC = () => {
         <Descriptions.Item label="Description">
           <TextField value={record?.description || "N/A"} />
         </Descriptions.Item>
-        <Descriptions.Item label="Image">
+        <Descriptions.Item label="Banner Preview (2:1 ratio)">
           {record?.image_url ? (
-            <Image src={record.image_url} alt={record.title} width={200} />
+            <Image
+              src={record.image_url}
+              alt={record.title}
+              width={300}
+              height={150}
+              style={{ objectFit: "cover", borderRadius: "8px" }}
+            />
           ) : (
             "No image"
           )}

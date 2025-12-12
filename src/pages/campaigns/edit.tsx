@@ -23,6 +23,36 @@ import { supabaseClient } from "../../utility";
 import dayjs from "dayjs";
 import { useParams } from "react-router";
 
+// Banner image specs: 2:1 aspect ratio (600x300 standard, 1200x600 retina)
+const BANNER_ASPECT_RATIO = 2;
+const ASPECT_RATIO_TOLERANCE = 0.1; // Allow 10% variance
+
+const validateImageDimensions = (file: File): Promise<{ valid: boolean; width: number; height: number; message?: string }> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const { width, height } = img;
+      const aspectRatio = width / height;
+      const isValidRatio = Math.abs(aspectRatio - BANNER_ASPECT_RATIO) <= ASPECT_RATIO_TOLERANCE;
+
+      if (!isValidRatio) {
+        resolve({
+          valid: false,
+          width,
+          height,
+          message: `Image aspect ratio should be 2:1. Your image is ${width}x${height} (${aspectRatio.toFixed(2)}:1). Recommended: 600x300 or 1200x600 pixels.`
+        });
+      } else {
+        resolve({ valid: true, width, height });
+      }
+    };
+    img.onerror = () => {
+      resolve({ valid: false, width: 0, height: 0, message: "Failed to load image" });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export const CampaignEdit: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -124,6 +154,12 @@ export const CampaignEdit: React.FC = () => {
   }) => {
     setUploading(true);
     try {
+      // Check image dimensions and warn if not optimal
+      const validation = await validateImageDimensions(file as File);
+      if (!validation.valid) {
+        message.warning(validation.message + " The image will be cropped to fit.", 6);
+      }
+
       const uploadedUrl = await uploadImage(file as File);
       setNewImageUrl(uploadedUrl);
       onSuccess?.("ok");
@@ -321,19 +357,24 @@ export const CampaignEdit: React.FC = () => {
           <Input.TextArea rows={3} />
         </Form.Item>
 
-        <Form.Item label="Current Banner Image">
+        <Form.Item label="Current Banner Preview (2:1 ratio)">
           {currentImageUrl ? (
             <Image
               src={currentImageUrl}
               alt="Current banner"
-              style={{ maxWidth: "300px", borderRadius: "8px" }}
+              width={300}
+              height={150}
+              style={{ objectFit: "cover", borderRadius: "8px" }}
             />
           ) : (
             <div style={{
-              padding: "20px",
+              width: 300,
+              height: 150,
               background: token.colorBgContainer,
               borderRadius: token.borderRadiusLG,
-              textAlign: "center",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               color: token.colorTextSecondary
             }}>
               No image uploaded
@@ -344,7 +385,7 @@ export const CampaignEdit: React.FC = () => {
         <Form.Item
           label="Upload New Banner Image"
           name="image_upload"
-          extra="Upload a new banner image to replace the current one (JPG, PNG, WebP, GIF - Max 5MB)"
+          extra="Recommended size: 600x300px (or 1200x600px for retina). Aspect ratio: 2:1. Accepted formats: JPG, PNG, WebP, GIF (Max 5MB)"
         >
           <Upload
             customRequest={handleUpload}
